@@ -10,7 +10,6 @@ import (
 	"github.com/suifengpiao14/kvstruct"
 )
 
-
 const (
 	TOKEN_BEGIN = ','
 	TOKEN_END   = '='
@@ -18,9 +17,9 @@ const (
 )
 
 // ParseLineschema 解析lineschema
-func ParseLineschema(lineschema string) (jsonline *Lineschema, err error) {
-	lineschema = compress(lineschema)
-	lines := strings.Split(lineschema, EOF)
+func ParseLineschema(lineschemaRaw string) (jsonline *Lineschema, err error) {
+	lineschemaRaw = compress(lineschemaRaw)
+	lines := strings.Split(lineschemaRaw, EOF)
 	jsonline = &Lineschema{
 		Items: make([]*LineschemaItem, 0),
 	}

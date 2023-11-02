@@ -33,7 +33,7 @@ func MakeValidateHandler(validateLoader gojsonschema.JSONLoader) (fn stream.Hand
 	}
 }
 
-func MakeFormatHandler(pathMap string) (fn stream.HandlerFn) {
+func MakeTransferHandler(pathMap string) (fn stream.HandlerFn) {
 	return func(ctx context.Context, input []byte) (out []byte, err error) {
 
 		out = ConvertFomat(input, pathMap)

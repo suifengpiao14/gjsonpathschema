@@ -16,12 +16,14 @@ var jsonschemaMap sync.Map
 
 //_Cjsonschema 编译好的jsonschema
 type _Cjsonschema struct {
-	ID             string `json:"id"`
-	LineschemaRaw  []byte `json:"lineschemaRaw"`
-	Lineschema     lineschema.Lineschema
-	Jsonschema     []byte `json:"jsonschema"`
-	DefaultJson    []byte `json:"defaultValues"`
-	validateLoader gojsonschema.JSONLoader
+	ID                        string `json:"id"`
+	LineschemaRaw             []byte `json:"lineschemaRaw"`
+	Lineschema                lineschema.Lineschema
+	Jsonschema                []byte `json:"jsonschema"`
+	DefaultJson               []byte `json:"defaultValues"`
+	transferToFormatGjsonPath string
+	transferToTypeGjsonPath   string
+	validateLoader            gojsonschema.JSONLoader
 }
 
 func (c _Cjsonschema) MergeDefaultStreamFn() (fn stream.HandlerFn) {
@@ -31,13 +33,27 @@ func (c _Cjsonschema) ValidateStreamFn() (fn stream.HandlerFn) {
 	return MakeValidateHandler(c.validateLoader)
 }
 
-func (c _Cjsonschema) ConvertFomatStreamFn(pathMap string) (fn stream.HandlerFn) {
-	return MakeFormatHandler(pathMap)
+//TransferToFormatStreamFn 采用format 属性转换数据，一般用于input
+func (c _Cjsonschema) TransferToFormatStreamFn() (fn stream.HandlerFn) {
+	return MakeTransferHandler(c.transferToFormatGjsonPath)
 }
 
-func RegisterSchema(jschema []byte) (err error) {
-	if jschema == nil {
-		err = errors.Errorf("json schema required")
+//TransferToTypeStreamFn 采用type 属性转换数据，一般用于output
+func (c _Cjsonschema) TransferToTypeStreamFn() (fn stream.HandlerFn) {
+	return MakeTransferHandler(c.transferToTypeGjsonPath)
+}
+
+func RegisterSchema(lineschemaRaw []byte) (err error) {
+	if lineschemaRaw == nil {
+		err = errors.Errorf("raw line schema required")
+		return err
+	}
+	lschema, err := lineschema.ParseLineschema(string(lineschemaRaw))
+	if err != nil {
+		return err
+	}
+	jschema, err := lschema.JsonSchema()
+	if err != nil {
 		return err
 	}
 	err = ValidateJsonschema(jschema)
@@ -52,10 +68,14 @@ func RegisterSchema(jschema []byte) (err error) {
 	}
 	id := getID(jschema)
 	cJsonschema := _Cjsonschema{
-		ID:             id,
-		Jsonschema:     jschema,
-		DefaultJson:    defaultJson,
-		validateLoader: jsonschemaLoader,
+		ID:                        id,
+		LineschemaRaw:             lineschemaRaw,
+		Lineschema:                *lschema,
+		Jsonschema:                jschema,
+		transferToFormatGjsonPath: lschema.TransferToFormatGjsonPath(),
+		transferToTypeGjsonPath:   lschema.TransfertoTypeGjsonPath(),
+		DefaultJson:               defaultJson,
+		validateLoader:            jsonschemaLoader,
 	}
 	jsonschemaMap.Store(id, &cJsonschema)
 	return nil
