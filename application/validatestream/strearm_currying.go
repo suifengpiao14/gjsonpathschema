@@ -1,4 +1,4 @@
-package lineschema
+package validatestream
 
 import (
 	"context"

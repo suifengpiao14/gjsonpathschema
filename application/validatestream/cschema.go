@@ -1,4 +1,4 @@
-package lineschema
+package validatestream
 
 import (
 	"strings"
@@ -6,6 +6,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/suifengpiao14/funcs"
+	"github.com/suifengpiao14/lineschema"
 	"github.com/suifengpiao14/stream"
 	"github.com/tidwall/gjson"
 	"github.com/xeipuuv/gojsonschema"
@@ -16,6 +17,8 @@ var jsonschemaMap sync.Map
 //_Cjsonschema 编译好的jsonschema
 type _Cjsonschema struct {
 	ID             string `json:"id"`
+	LineschemaRaw  []byte `json:"lineschemaRaw"`
+	Lineschema     lineschema.Lineschema
 	Jsonschema     []byte `json:"jsonschema"`
 	DefaultJson    []byte `json:"defaultValues"`
 	validateLoader gojsonschema.JSONLoader

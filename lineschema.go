@@ -3,56 +3,14 @@ package lineschema
 import (
 	"encoding/json"
 	"fmt"
-	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/suifengpiao14/kvstruct"
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 )
-
-type LineschemaItem struct {
-	Path        string `json:"path"`
-	Type        string `json:"type"`
-	Format      string `json:"format,omitempty"`
-	Description string `json:"description,omitempty"`
-
-	Comments         string `json:"comment,omitempty"`                 // section 8.3
-	Enum             string `json:"enum,omitempty"`                    // section 6.1.2
-	EnumNames        string `json:"enumNames,omitempty"`               // section 6.1.2
-	Const            string `json:"const,omitempty"`                   // section 6.1.3
-	MultipleOf       int    `json:"multipleOf,omitempty,string"`       // section 6.2.1
-	Maximum          int    `json:"maximum,omitempty,string"`          // section 6.2.2
-	ExclusiveMaximum bool   `json:"exclusiveMaximum,omitempty,string"` // section 6.2.3
-	Minimum          int    `json:"minimum,omitempty,string"`          // section 6.2.4
-	ExclusiveMinimum bool   `json:"exclusiveMinimum,omitempty,string"` // section 6.2.5
-	MaxLength        int    `json:"maxLength,omitempty,string"`        // section 6.3.1
-	MinLength        int    `json:"minLength,omitempty,string"`        // section 6.3.2
-	Pattern          string `json:"pattern,omitempty"`                 // section 6.3.3
-	MaxItems         int    `json:"maxItems,omitempty,string"`         // section 6.4.1
-	MinItems         int    `json:"minItems,omitempty,string"`         // section 6.4.2
-	UniqueItems      bool   `json:"uniqueItems,omitempty,string"`      // section 6.4.3
-	MaxContains      uint   `json:"maxContains,omitempty,string"`      // section 6.4.4
-	MinContains      uint   `json:"minContains,omitempty,string"`      // section 6.4.5
-	MaxProperties    int    `json:"maxProperties,omitempty,string"`    // section 6.5.1
-	MinProperties    int    `json:"minProperties,omitempty,string"`    // section 6.5.2
-	Required         bool   `json:"required,omitempty,string"`         // section 6.5.3
-
-	// RFC draft-bhutton-json-schema-validation-00, section 8
-	ContentEncoding  string      `json:"contentEncoding,omitempty"`   // section 8.3
-	ContentMediaType string      `json:"contentMediaType,omitempty"`  // section 8.4
-	Title            string      `json:"title,omitempty"`             // section 9.1
-	Default          string      `json:"default,omitempty"`           // section 9.2
-	Deprecated       bool        `json:"deprecated,omitempty,string"` // section 9.3
-	ReadOnly         bool        `json:"readOnly,omitempty,string"`   // section 9.4
-	WriteOnly        bool        `json:"writeOnly,omitempty,string"`  // section 9.4
-	Example          string      `json:"example,omitempty"`           // section 9.5
-	Examples         string      `json:"examples,omitempty"`          // section 9.5
-	Src              string      `json:"src,omitempty"`
-	Dst              string      `json:"dst,omitempty"`
-	Fullname         string      `json:"fullname,omitempty"`
-	AllowEmptyValue  bool        `json:"allowEmptyValue,omitempty,string"`
-	Lineschema       *Lineschema `json:"-"`
-}
 
 type Meta struct {
 	ID          string `json:"id"`
@@ -65,187 +23,206 @@ type Lineschema struct {
 	Items []*LineschemaItem
 }
 
-const (
-	TOKEN_BEGIN = ','
-	TOKEN_END   = '='
-	EOF         = "\n"
-)
+var jsonschemalineItemOrder = []string{
+	"fullname", "src", "dst", "type", "format", "pattern", "enum", "required", "allowEmptyValue", "title", "description", "default", "comment", "example", "deprecated", "const",
+	"multipleOf", "maximum", "exclusiveMaximum", "minimum", "exclusiveMinimum", "maxLength", "minLength",
+	"maxItems",
+	"minItems",
+	"uniqueItems",
+	"maxContains",
+	"minContains",
+	"maxProperties",
+	"minProperties",
+	"contentEncoding",
+	"contentMediaType",
+	"readOnly",
+	"writeOnly",
+}
 
-// ParseLineschema 解析lineschema
-func ParseLineschema(lineschema string) (jsonline *Lineschema, err error) {
-	lineschema = compress(lineschema)
-	lines := strings.Split(lineschema, EOF)
-	jsonline = &Lineschema{
-		Items: make([]*LineschemaItem, 0),
+func (l *Lineschema) String() string {
+	lineArr := make([]string, 0)
+	lineArr = append(lineArr, fmt.Sprintf("version=%s,id=%s", l.Meta.Version, l.Meta.ID))
+	var linemap []map[string]string
+	b, err := json.Marshal(l.Items)
+	if err != nil {
+		err = errors.WithStack(err)
+		panic(err)
 	}
-	for _, line := range lines {
-		kvs := parserOneLine(line)
-		if IsMetaLine(kvs) {
-			meta, err := kvs2meta(kvs)
+	err = json.Unmarshal(b, &linemap)
+	if err != nil {
+		err = errors.WithStack(err)
+		panic(err)
+	}
+
+	for _, m := range linemap {
+		kvArr := make([]string, 0)
+		for _, k := range jsonschemalineItemOrder {
+			v, ok := m[k]
+			if ok {
+				if k == "type" && v == "string" {
+					continue // 字符串类型,默认不写
+				}
+				if v == "true" {
+					kvArr = append(kvArr, k)
+				} else {
+					kvArr = append(kvArr, fmt.Sprintf("%s=%s", k, v))
+				}
+			}
+		}
+		line := strings.Join(kvArr, ",")
+		lineArr = append(lineArr, line)
+	}
+	out := strings.Join(lineArr, EOF)
+	return out
+}
+
+// BaseNames 获取所有基础名称
+func (l *Lineschema) BaseNames() (names []string) {
+	names = make([]string, 0)
+	for _, item := range l.Items {
+		names = append(names, BaseName(item.Fullname))
+	}
+	return names
+}
+
+func (l *Lineschema) JsonSchema() (jsonschemaByte []byte, err error) {
+	kvs := kvstruct.KVS{
+		{Key: "$schema", Value: "http://json-schema.org/draft-07/schema#"},
+	}
+	for _, item := range l.Items {
+		subKvs, err := item.ToJsonSchemaKVS()
+		if err != nil {
+			return nil, err
+		}
+		kvs.Add(subKvs...)
+	}
+
+	jsonschemaByte = []byte("")
+	for _, kv := range kvs {
+		if gjson.GetBytes(jsonschemaByte, kv.Key).Exists() { // 已经存在的，不覆盖（防止 array、object 在其子属性说明后，导致覆盖）
+			continue
+		}
+		if kvstruct.IsJsonStr(kv.Value) {
+			jsonschemaByte, err = sjson.SetRawBytes(jsonschemaByte, kv.Key, []byte(kv.Value))
 			if err != nil {
 				return nil, err
 			}
-			jsonline.Meta = meta
 			continue
 		}
-		item, err := kv2item(kvs)
+		var value interface{}
+		value = kv.Value
+		baseKey := BaseName(kv.Key)
+		switch baseKey {
+		case "exclusiveMaximum", "exclusiveMinimum", "deprecated", "readOnly", "writeOnly", "uniqueItems":
+			value = kv.Value == "true"
+		case "multipleOf", "maximum", "minimum", "maxLength", "minLength", "maxItems", "minItems", "maxContains", "minContains", "maxProperties", "minProperties":
+			value, _ = strconv.Atoi(kv.Value)
+		}
+		jsonschemaByte, err = sjson.SetBytes(jsonschemaByte, kv.Key, value)
 		if err != nil {
 			return nil, err
 		}
-		err = validItem(item)
-		if err != nil {
-			err = errors.WithMessage(err, fmt.Sprintf(" got:%s", line))
-			return nil, err
+	}
+	return jsonschemaByte, nil
+}
+
+//TransferToFormatGjsonPath 获取将当前数据按format 格式转换输出的转换路径,一般用于接口数据转go对象,省去int、bool和string类型转换
+func (lineschema Lineschema) TransferToFormatGjsonPath() (gojsonpath string) {
+	transfer := NewLineschemaTransfer(lineschema.Meta.Type)
+	for _, item := range lineschema.Items {
+		tItem := LineschemaTransferItem{
+			Src: *item,
+			Dst: item.TransferByFormat(),
 		}
-		srcOrDst := strings.ReplaceAll(item.Fullname, "[]", ".#")
-		if item.Src == "" {
-			item.Src = srcOrDst
-		} else if item.Dst == "" {
-			item.Dst = srcOrDst
+		transfer.Items = append(transfer.Items, tItem)
+	}
+	return transfer.String()
+}
+
+//TransferToFormatGjsonPath 获取将当前数据按type 格式转换输出的转换路径,一般用于go对象序列化数据转换为传输数据,省去int、bool和string类型转换
+func (lineschema Lineschema) TransfertoTypeGjsonPath() (gojsonpath string) {
+	transfer := NewLineschemaTransfer(lineschema.Meta.Type)
+	for _, item := range lineschema.Items {
+		tItem := LineschemaTransferItem{
+			Src: *item,
+			Dst: item.TransferByType(),
 		}
-		item.Lineschema = jsonline
-		jsonline.Items = append(jsonline.Items, item)
+		transfer.Items = append(transfer.Items, tItem)
 	}
-
-	return jsonline, nil
+	return transfer.String()
 }
-
-func kvs2meta(kvs kvstruct.KVS) (meta *Meta, err error) {
-	meta = new(Meta)
-	jb, err := json.Marshal(kvs.Map())
-	if err != nil {
-		return nil, err
-	}
-	err = json.Unmarshal(jb, meta)
-	if err != nil {
-		return nil, err
-	}
-	return meta, nil
+func ReplacePathSpecalChar(path string) (newPath string) {
+	replacer := strings.NewReplacer("|", "\\|", "#", "\\#", "@", "\\@", "*", "\\*", "?", "\\?")
+	return replacer.Replace(path)
 }
-
-func IsMetaLine(lineTags kvstruct.KVS) bool {
-	hasFullname, hasId := false, false
-	for _, kvPair := range lineTags {
-		switch kvPair.Key {
-		case "id":
-			hasId = true
-		case "fullname":
-			hasFullname = true
+func (l *Lineschema) JsonExample() (jsonExample string, err error) {
+	jsonExample = ""
+	for _, item := range l.Items {
+		key := strings.ReplaceAll(item.Fullname, "[]", ".0")
+		if key == "" {
+			continue
 		}
-	}
-	is := hasId && !hasFullname
-	return is
-}
-
-func validItem(item *LineschemaItem) (err error) {
-	if item.Fullname == "" {
-		err = errors.New("fullname required ")
-		return err
-	}
-	if item.Src == "" && item.Dst == "" {
-		err = errors.New("at least one of dst/src required ")
-		return err
-	}
-	return nil
-}
-func kv2item(kvs kvstruct.KVS) (item *LineschemaItem, err error) {
-	item = new(LineschemaItem)
-	m := make(map[string]interface{})
-	for k, v := range kvs.Map() {
-		m[k] = v
-	}
-
-	jb, err := json.Marshal(m)
-	if err != nil {
-		return nil, err
-	}
-	err = json.Unmarshal(jb, item)
-	if err != nil {
-		return nil, err
-	}
-	return item, nil
-}
-
-func compress(lineschema string) (compressedSchema string) {
-	lineschema = strings.TrimSpace(lineschema)
-	replacer := strings.NewReplacer(" ", "", "\t", "", "\r", "")
-	compressedSchema = replacer.Replace(lineschema)
-	return compressedSchema
-}
-
-// parserOneLine 解析一行数据
-func parserOneLine(line string) (kvs kvstruct.KVS) {
-	line = compress(line)
-	if line == "" {
-		return nil
-	}
-	ret := make([]string, 0)
-	separated := strings.Split(line, ",")
-	ret = append(ret, separated[0])
-	i := 0
-	for _, nextTag := range separated[1:] {
-		if isToken(nextTag) {
-			ret = append(ret, nextTag)
-			i++
+		var value interface{}
+		if item.Examples != "" {
+			value = item.Examples
+		} else if item.Example != "" {
+			value = item.Example
+		} else if item.Default != "" {
+			value = item.Default
 		} else {
-			ret[i] = fmt.Sprintf("%s,%s", ret[i], nextTag)
+			switch item.Type {
+			case "int", "integer":
+				value = 0
+			case "number":
+				value = "0"
+			case "string":
+				value = ""
+			}
+		}
+		key = ReplacePathSpecalChar(key)
+		existsResult := gjson.Get(jsonExample, key)
+		if existsResult.IsArray() || existsResult.IsObject() { //支持array、object 整体设置example
+			if str, ok := value.(string); ok {
+				jsonExample, err = sjson.SetRaw(jsonExample, key, str)
+				if err != nil {
+					return "", err
+				}
+			}
+			continue
+		}
+		jsonExample, err = sjson.Set(jsonExample, key, value)
+		if err != nil {
+			return "", err
 		}
 	}
-	kvs = make(kvstruct.KVS, 0)
-	for _, pair := range ret {
-		arr := strings.SplitN(pair, "=", 2)
-		if len(arr) == 1 {
-			arr = append(arr, "true")
-		}
-		k, v := arr[0], arr[1]
-		kv := kvstruct.KV{
-			Key:   k,
-			Value: v,
-		}
-		kvs.Add(kv)
-	}
-	// 增加默认type=string，如果存在则忽略
-	kvs.AddIgnore(kvstruct.KV{
-		Key:   "type",
-		Value: "string",
-	})
-	return kvs
-}
-func isToken(s string) (yes bool) {
-	for _, token := range getTokens() {
-		yes = strings.HasPrefix(s, token)
-		if yes {
-			return yes
-		}
-	}
-	return false
+	return jsonExample, nil
 }
 
-func getTokens() (tokens []string) {
-	tokens = make([]string, 0)
-	meta := new(Meta)
-	var rt reflect.Type
-	rt = reflect.TypeOf(meta).Elem()
-	tokens = append(tokens, getJsonTagname(rt)...)
-	item := new(LineschemaItem)
-	rt = reflect.TypeOf(item).Elem()
-	tokens = append(tokens, getJsonTagname(rt)...)
-
-	return tokens
+type DefaultJson struct {
+	ID      string
+	Version string
+	Json    string
 }
 
-func getJsonTagname(rt reflect.Type) (jsonNames []string) {
-	jsonNames = make([]string, 0)
-	for i := 0; i < rt.NumField(); i++ {
-		jsonTag := rt.Field(i).Tag.Get("json")
-		index := strings.Index(jsonTag, ",")
-		if index > 0 {
-			jsonTag = jsonTag[:index]
-		}
-		jsonTag = strings.TrimSpace(jsonTag)
-		if jsonTag != "-" {
-			jsonNames = append(jsonNames, jsonTag)
+func (l *Lineschema) DefaultJson() (defaultJson *DefaultJson, err error) {
+	defaultJson = new(DefaultJson)
+	id := l.Meta.ID
+	defaultJson.ID = id
+	defaultJson.Version = l.Meta.Version
+	kvmap := make(map[string]string)
+	for _, item := range l.Items {
+		if item.Default != "" || item.AllowEmptyValue {
+			path := strings.ReplaceAll(item.Fullname, "[]", ".#")
+			kvmap[path] = item.Default
 		}
 	}
-	return jsonNames
+	jsonContent := ""
+	for k, v := range kvmap {
+		jsonContent, err = sjson.Set(jsonContent, k, v)
+		if err != nil {
+			return nil, err
+		}
+	}
+	defaultJson.Json = jsonContent
+	return defaultJson, nil
 }
