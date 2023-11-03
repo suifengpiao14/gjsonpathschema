@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"github.com/suifengpiao14/funcs"
 	"github.com/suifengpiao14/kvstruct"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
@@ -37,6 +38,22 @@ var jsonschemalineItemOrder = []string{
 	"contentMediaType",
 	"readOnly",
 	"writeOnly",
+}
+
+func (l *Lineschema) Validate() (err error) {
+	if l.Meta == nil {
+		return errors.Errorf("lineschema meta required")
+	}
+	if l.Meta.ID == "" {
+		return errors.Errorf("lineschema meta.Id required")
+	}
+	return err
+}
+
+func (l *Lineschema) UniqKey() (uniqKey string) {
+	s := l.String()
+	uniqKey = funcs.Md5Lower(s)
+	return uniqKey
 }
 
 func (l *Lineschema) String() string {

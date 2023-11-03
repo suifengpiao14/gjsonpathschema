@@ -5,3 +5,4 @@
 2. jsonschema 和lineschema 互转
 3. json和lineschema互转
 4. 基于lineschema对json数据结构转换
+application 目录提供lineschema 应用场景
