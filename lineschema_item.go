@@ -1,7 +1,6 @@
 package lineschema
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -53,7 +52,7 @@ type LineschemaItem struct {
 	Lineschema       *Lineschema `json:"-"`
 }
 
-func (item LineschemaItem) TransferByFormat() (newLineschemaItem LineschemaItem) {
+func (item LineschemaItem) GetFormatPath() (newLineschemaItem LineschemaItem) {
 	transferConfig, ok := DefaultLineschemaTransferRelations.GetByFormat(item.Format)
 	if !ok {
 		return item
@@ -63,8 +62,8 @@ func (item LineschemaItem) TransferByFormat() (newLineschemaItem LineschemaItem)
 	newLineschemaItem.Type = transferConfig.Type
 	return newLineschemaItem
 }
-func (item LineschemaItem) TransferByType() (newLineschemaItem LineschemaItem) {
-	transferConfig, ok := DefaultLineschemaTransferRelations.GetByType(item.Type)
+func (item LineschemaItem) GetTypePath() (newLineschemaItem LineschemaItem) {
+	transferConfig, ok := DefaultLineschemaTransferRelations.GetByType(item.Type, &item)
 	if !ok {
 		return item
 	}
@@ -74,123 +73,10 @@ func (item LineschemaItem) TransferByType() (newLineschemaItem LineschemaItem) {
 	return newLineschemaItem
 }
 
-
-type LineschemaTransferItem struct {
-	Src LineschemaItem `json:"src"`
-	Dst LineschemaItem `json:"dst"`
-}
-
 const (
 	LineschemaTransfer_Type_object = "object"
 	LineschemaTransfer_Type_array  = "array"
 )
-
-type LineschemaTransfer struct {
-	Type  string
-	Items []LineschemaTransferItem
-}
-
-func NewLineschemaTransfer(typ string) (transfer LineschemaTransfer) {
-	return LineschemaTransfer{
-		Type: typ,
-	}
-}
-
-//新增，存在替换
-func (transfer LineschemaTransfer) Replace(transferItems ...LineschemaTransferItem) {
-	for _, transferItem := range transferItems {
-		exists := false
-		for i, item := range transfer.Items {
-			if item.Src.Path == transferItem.Src.Path {
-				transfer.Items[i] = transferItem
-				exists = true
-				break
-			}
-		}
-		if !exists {
-			transfer.Items = append(transfer.Items, transferItem)
-		}
-	}
-}
-func (transfer LineschemaTransfer) IsArray() bool {
-	return transfer.Type == LineschemaTransfer_Type_array
-}
-
-func (transfer LineschemaTransfer) Reverse() (reversedTransfer LineschemaTransfer) {
-	reversedTransfer = LineschemaTransfer{
-		Type:  transfer.Type,
-		Items: make([]LineschemaTransferItem, 0),
-	}
-	for _, item := range transfer.Items {
-		refersedItem := LineschemaTransferItem{
-			Src: item.Dst,
-			Dst: item.Src,
-		}
-		reversedTransfer.Items = append(reversedTransfer.Items, refersedItem)
-	}
-	return reversedTransfer
-}
-
-func (transfer LineschemaTransfer) String() (gojsonPath string) {
-	var (
-		w     bytes.Buffer
-		begin rune = '{'
-		end   rune = '}'
-	)
-	if transfer.IsArray() {
-		begin = '['
-		end = ']'
-	}
-	w.WriteRune(begin)
-	for i, item := range transfer.Items {
-		if i > 0 {
-			w.WriteRune(',')
-		}
-		w.WriteString(item.Src.Path)
-		w.WriteRune(':')
-		w.WriteString(item.Dst.Path)
-	}
-	w.WriteRune(end)
-	return w.String()
-}
-
-type LineschemaTransferRelation struct {
-	Format    string `json:"format"`    // 格式
-	Type      string `json:"type"`      // 对应类型
-	ConvertFn string `json:"convertFn"` // 转换函数名称
-}
-type LineschemaTransferRelations []LineschemaTransferRelation
-
-func (ms LineschemaTransferRelations) GetByFormat(format string) (m *LineschemaTransferRelation, ok bool) {
-	for _, m := range ms {
-		if m.Format == format {
-			return &m, true
-		}
-	}
-	return nil, false
-}
-func (ms LineschemaTransferRelations) GetByType(typ string) (m *LineschemaTransferRelation, ok bool) {
-	for _, m := range ms {
-		if m.Type == typ {
-			return &m, true
-		}
-	}
-	return nil, false
-}
-
-//DefaultLineschemaTransferRelations schema format 转类型
-var DefaultLineschemaTransferRelations = LineschemaTransferRelations{
-	{Format: "int", Type: "int", ConvertFn: "@tonum"},
-	{Format: "number", Type: "number", ConvertFn: "@tonum"},
-	{Format: "bool", Type: "bool", ConvertFn: "@tobool"},
-	{Format: "boolean", Type: "bool", ConvertFn: "@tobool"},
-	{Format: "time", Type: "string", ConvertFn: "@tostring"},
-	{Format: "datetime", Type: "string", ConvertFn: "@tostring"},
-	{Format: "date", Type: "string", ConvertFn: "@tostring"},
-	{Format: "email", Type: "string", ConvertFn: "@tostring"},
-	{Format: "phone", Type: "string", ConvertFn: "@tostring"},
-	{Format: "string", Type: "string", ConvertFn: "@tostring"},
-}
 
 func (jItem LineschemaItem) String() (jsonStr string) {
 	copy := jItem

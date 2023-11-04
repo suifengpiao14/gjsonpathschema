@@ -98,7 +98,7 @@ func kv2item(kvs kvstruct.KVS) (item *LineschemaItem, err error) {
 	if err != nil {
 		return nil, err
 	}
-	item.Path = strings.ReplaceAll(item.Fullname, "[]", "#")
+	item.Path = strings.ReplaceAll(item.Fullname, "[]", ".#")
 	return item, nil
 }
 
