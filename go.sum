@@ -44,8 +44,8 @@ github.com/suifengpiao14/kvstruct v0.0.14 h1:c5Eb6AsBN0gTVGk/Vj05aEiJ79j+pNNo3aI
 github.com/suifengpiao14/kvstruct v0.0.14/go.mod h1:v3hf2KPrafdYJJ49M5RWLfpYS8Z2fsJO/rAGMnIBYn8=
 github.com/suifengpiao14/logchan/v2 v2.0.22 h1:LhpV9E0ofNRQFEvR9MOF4hSHJes8s/aXn9Z4qdLVPck=
 github.com/suifengpiao14/logchan/v2 v2.0.22/go.mod h1:6o0naTqWDkgYMR4vQetJn1zVGMLD9YZ8TrNzQ9OjAFY=
-github.com/suifengpiao14/stream v0.0.2 h1:gt6xNcQiO+W69St4HPpTrmxgK98d7VVS/4J7VSVOfcQ=
-github.com/suifengpiao14/stream v0.0.2/go.mod h1:ZAw8mWhdYCZq/8WRtxVRvItlCu/NaRbcE0Cx/14tGow=
+github.com/suifengpiao14/stream v0.0.4 h1:z6qrbh14XRdhh1HKri00utPoe47NI5v75xj1EVxzbAQ=
+github.com/suifengpiao14/stream v0.0.4/go.mod h1:7slYMLHKNBWPxAv82NUvqwRA8qBjvxcWcerXnWgfO58=
 github.com/tidwall/gjson v1.14.2/go.mod h1:/wbyibRr2FHMks5tjHJ5F8dMZh3AcwJEMf5vlfC0lxk=
 github.com/tidwall/gjson v1.17.0 h1:/Jocvlh98kcTfpN2+JzGQWQcqrPQwDrVEMApx/M5ZwM=
 github.com/tidwall/gjson v1.17.0/go.mod h1:/wbyibRr2FHMks5tjHJ5F8dMZh3AcwJEMf5vlfC0lxk=

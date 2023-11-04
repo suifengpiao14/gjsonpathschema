@@ -9,7 +9,7 @@ require (
 	github.com/suifengpiao14/funcs v0.0.11
 	github.com/suifengpiao14/gjsonmodifier v0.1.9
 	github.com/suifengpiao14/kvstruct v0.0.14
-	github.com/suifengpiao14/stream v0.0.2
+	github.com/suifengpiao14/stream v0.0.4
 	github.com/tidwall/gjson v1.17.0
 	github.com/tidwall/sjson v1.2.5
 	github.com/xeipuuv/gojsonschema v1.2.0
