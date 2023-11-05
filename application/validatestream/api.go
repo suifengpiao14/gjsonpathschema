@@ -36,6 +36,7 @@ func RegisterLineschemaApi(api LineschemaApi) (err error) {
 	return err
 }
 
+// GetApiStreamHandlerFn api,sdk 请求流插件
 func GetApiStreamHandlerFn(api LineschemaApi) (inHandlerFns []stream.HandlerFn, outHandlerFns []stream.HandlerFn, err error) {
 	method, path := api.GetRoute()
 	idIn, idOut := MakeLineschemaApiKey(method, path)
@@ -55,6 +56,7 @@ func GetApiStreamHandlerFn(api LineschemaApi) (inHandlerFns []stream.HandlerFn, 
 	}
 	outHandlerFns = []stream.HandlerFn{
 		outClineshema.TransferToTypeStreamFn(),
+		outClineshema.MergeDefaultStreamFn(),
 		outClineshema.ValidateStreamFn(),
 	}
 
