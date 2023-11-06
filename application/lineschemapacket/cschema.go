@@ -1,4 +1,4 @@
-package validatestream
+package lineschemapacket
 
 import (
 	"strings"
@@ -13,7 +13,7 @@ import (
 
 var clineschemaMap sync.Map
 
-//_Clineschema 编译好的jsonschema
+// _Clineschema 编译好的jsonschema
 type _Clineschema struct {
 	ID                        string `json:"id"`
 	Lineschema                lineschema.Lineschema
@@ -24,20 +24,20 @@ type _Clineschema struct {
 	validateLoader            gojsonschema.JSONLoader
 }
 
-func (c _Clineschema) MergeDefaultStreamFn() (fn stream.HandlerFn) {
+func (c _Clineschema) MergeDefaultFn() (fn stream.HandlerFn) {
 	return MakeMergeDefaultHandler(c.DefaultJson)
 }
-func (c _Clineschema) ValidateStreamFn() (fn stream.HandlerFn) {
+func (c _Clineschema) ValidatePacketFn() (fn stream.HandlerFn) {
 	return MakeValidateHandler(c.validateLoader)
 }
 
-//TransferToFormatStreamFn 采用format 属性转换数据，一般用于input
-func (c _Clineschema) TransferToFormatStreamFn() (fn stream.HandlerFn) {
+// TransferToFormatFn 采用format 属性转换数据，一般用于input
+func (c _Clineschema) TransferToFormatFn() (fn stream.HandlerFn) {
 	return MakeTransferHandler(c.transferToFormatGjsonPath)
 }
 
-//TransferToTypeStreamFn 采用type 属性转换数据，一般用于output
-func (c _Clineschema) TransferToTypeStreamFn() (fn stream.HandlerFn) {
+// TransferToTypeFn 采用type 属性转换数据，一般用于output
+func (c _Clineschema) TransferToTypeFn() (fn stream.HandlerFn) {
 	return MakeTransferHandler(c.transferToTypeGjsonPath)
 }
 
@@ -70,7 +70,7 @@ func RegisterLineschema(identify string, lschema lineschema.Lineschema) (err err
 		Lineschema:                lschema,
 		Jsonschema:                jschema,
 		transferToFormatGjsonPath: lschema.TransferToFormatGjsonPath(),
-		transferToTypeGjsonPath:   lschema.TransfertoTypeGjsonPath(),
+		transferToTypeGjsonPath:   lschema.TransferToTypeGjsonPath(),
 		DefaultJson:               defaultJson,
 		validateLoader:            jsonschemaLoader,
 	}
@@ -103,7 +103,7 @@ var draftMap = map[string]string{
 	"http://json-schema.org/draft-07/schema": `{"$schema":"http://json-schema.org/draft-07/schema#","$id":"http://json-schema.org/draft-07/schema#","title":"Core schema meta-schema","definitions":{"schemaArray":{"type":"array","minItems":1,"items":{"$ref":"#"}},"nonNegativeInteger":{"type":"integer","minimum":0},"nonNegativeIntegerDefault0":{"allOf":[{"$ref":"#/definitions/nonNegativeInteger"},{"default":0}]},"simpleTypes":{"enum":["array","boolean","integer","null","number","object","string"]},"stringArray":{"type":"array","items":{"type":"string"},"uniqueItems":true,"default":[]}},"type":["object","boolean"],"properties":{"$id":{"type":"string","format":"uri-reference"},"$schema":{"type":"string","format":"uri"},"$ref":{"type":"string","format":"uri-reference"},"$comment":{"type":"string"},"title":{"type":"string"},"description":{"type":"string"},"default":true,"readOnly":{"type":"boolean","default":false},"writeOnly":{"type":"boolean","default":false},"examples":{"type":"array","items":true},"multipleOf":{"type":"number","exclusiveMinimum":0},"maximum":{"type":"number"},"exclusiveMaximum":{"type":"number"},"minimum":{"type":"number"},"exclusiveMinimum":{"type":"number"},"maxLength":{"$ref":"#/definitions/nonNegativeInteger"},"minLength":{"$ref":"#/definitions/nonNegativeIntegerDefault0"},"pattern":{"type":"string","format":"regex"},"additionalItems":{"$ref":"#"},"items":{"anyOf":[{"$ref":"#"},{"$ref":"#/definitions/schemaArray"}],"default":true},"maxItems":{"$ref":"#/definitions/nonNegativeInteger"},"minItems":{"$ref":"#/definitions/nonNegativeIntegerDefault0"},"uniqueItems":{"type":"boolean","default":false},"contains":{"$ref":"#"},"maxProperties":{"$ref":"#/definitions/nonNegativeInteger"},"minProperties":{"$ref":"#/definitions/nonNegativeIntegerDefault0"},"required":{"$ref":"#/definitions/stringArray"},"additionalProperties":{"$ref":"#"},"definitions":{"type":"object","additionalProperties":{"$ref":"#"},"default":{}},"properties":{"type":"object","additionalProperties":{"$ref":"#"},"default":{}},"patternProperties":{"type":"object","additionalProperties":{"$ref":"#"},"propertyNames":{"format":"regex"},"default":{}},"dependencies":{"type":"object","additionalProperties":{"anyOf":[{"$ref":"#"},{"$ref":"#/definitions/stringArray"}]}},"propertyNames":{"$ref":"#"},"const":true,"enum":{"type":"array","items":true,"minItems":1,"uniqueItems":true},"type":{"anyOf":[{"$ref":"#/definitions/simpleTypes"},{"type":"array","items":{"$ref":"#/definitions/simpleTypes"},"minItems":1,"uniqueItems":true}]},"format":{"type":"string"},"contentMediaType":{"type":"string"},"contentEncoding":{"type":"string"},"if":{"$ref":"#"},"then":{"$ref":"#"},"else":{"$ref":"#"},"allOf":{"$ref":"#/definitions/schemaArray"},"anyOf":{"$ref":"#/definitions/schemaArray"},"oneOf":{"$ref":"#/definitions/schemaArray"},"not":{"$ref":"#"}},"default":true}`,
 }
 
-//ValidateJsonschema 验证schema是否符合规范
+// ValidateJsonschema 验证schema是否符合规范
 func ValidateJsonschema(lschemaRaw []byte) (err error) {
 	metaSchemaRef := gjson.GetBytes(lschemaRaw, "$schema").String()
 	if metaSchemaRef == "" {

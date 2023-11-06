@@ -1,4 +1,4 @@
-package gogenerate
+package lineschemagogenerate
 
 import (
 	"encoding/json"

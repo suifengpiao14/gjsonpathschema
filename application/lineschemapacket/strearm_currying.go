@@ -1,4 +1,4 @@
-package validatestream
+package lineschemapacket
 
 import (
 	"context"

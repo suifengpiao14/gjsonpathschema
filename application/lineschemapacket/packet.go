@@ -1,4 +1,4 @@
-package validatestream
+package lineschemapacket
 
 import (
 	"fmt"
@@ -14,9 +14,9 @@ type LineschemaPacketI interface {
 	PackSchema() (lineschema string)        // 封包配置 程序到网络
 }
 
-func RegisterLineschemaPackage(pack LineschemaPacketI) (err error) {
+func RegisterLineschemaPacket(pack LineschemaPacketI) (err error) {
 	method, path := pack.GetRoute()
-	unpackId, packId := MakeLineschemaApiKey(method, path)
+	unpackId, packId := makeLineschemaPacketKey(method, path)
 	unpackSchema, packSchema := pack.UnpackSchema(), pack.PackSchema()
 	unpackLineschema, err := lineschema.ParseLineschema(unpackSchema)
 	if err != nil {
@@ -39,7 +39,7 @@ func RegisterLineschemaPackage(pack LineschemaPacketI) (err error) {
 
 func GetLineschemaPackageHandlerFn(api LineschemaPacketI) (unpackHandlerFns []stream.HandlerFn, packHandlerFns []stream.HandlerFn, err error) {
 	method, path := api.GetRoute()
-	idIn, idOut := MakeLineschemaApiKey(method, path)
+	idIn, idOut := makeLineschemaPacketKey(method, path)
 	inClineshema, err := GetClineschema(idIn)
 	if err != nil {
 		return nil, nil, err
@@ -50,20 +50,21 @@ func GetLineschemaPackageHandlerFn(api LineschemaPacketI) (unpackHandlerFns []st
 		return nil, nil, err
 	}
 	unpackHandlerFns = []stream.HandlerFn{
-		inClineshema.ValidateStreamFn(),
-		inClineshema.MergeDefaultStreamFn(),
-		inClineshema.TransferToFormatStreamFn(),
+		inClineshema.ValidatePacketFn(),
+		inClineshema.MergeDefaultFn(),
+		inClineshema.TransferToFormatFn(),
 	}
 	packHandlerFns = []stream.HandlerFn{
-		outClineshema.TransferToTypeStreamFn(),
-		outClineshema.ValidateStreamFn(),
+		outClineshema.TransferToTypeFn(),
+		outClineshema.MergeDefaultFn(),
+		outClineshema.ValidatePacketFn(),
 	}
 
 	return unpackHandlerFns, packHandlerFns, nil
 
 }
 
-func MakeLineschemaApiKey(method string, path string) (idIn string, idOut string) {
+func makeLineschemaPacketKey(method string, path string) (idIn string, idOut string) {
 	idIn = fmt.Sprintf("%s-%s-input", method, path)
 	idOut = fmt.Sprintf("%s-%s-output", method, path)
 	return idIn, idOut

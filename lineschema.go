@@ -8,6 +8,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/suifengpiao14/funcs"
+	_ "github.com/suifengpiao14/gjsonmodifier"
 	"github.com/suifengpiao14/kvstruct"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
@@ -143,28 +144,28 @@ func (l *Lineschema) JsonSchema() (jsonschemaByte []byte, err error) {
 	return jsonschemaByte, nil
 }
 
-//TransferToFormatGjsonPath 获取将当前数据按format 格式转换输出的转换路径,一般用于接口数据转go对象,省去int、bool和string类型转换
+// TransferToFormatGjsonPath 获取将当前数据按format 格式转换输出的转换路径,一般用于接口数据转go对象,省去int、bool和string类型转换
 func (lineschema Lineschema) TransferToFormatGjsonPath() (gojsonpath string) {
-	transfer := NewLineschemaTransfer(lineschema.Meta.Type)
+	transfer := NewLineschemaTransfer()
 	for _, item := range lineschema.Items {
 		tItem := LineschemaTransferItem{
-			Src: *item,
-			Dst: item.TransferByFormat(),
+			Src: item.GetFormatPath(),
+			Dst: *item,
 		}
-		transfer.Items = append(transfer.Items, tItem)
+		transfer.Replace(tItem)
 	}
 	return transfer.String()
 }
 
-//TransferToFormatGjsonPath 获取将当前数据按type 格式转换输出的转换路径,一般用于go对象序列化数据转换为传输数据,省去int、bool和string类型转换
-func (lineschema Lineschema) TransfertoTypeGjsonPath() (gojsonpath string) {
-	transfer := NewLineschemaTransfer(lineschema.Meta.Type)
+// TransferToTypeGjsonPath 获取将当前数据按type 格式转换输出的转换路径,一般用于go对象序列化数据转换为传输数据,省去int、bool和string类型转换
+func (lineschema Lineschema) TransferToTypeGjsonPath() (gojsonpath string) {
+	transfer := NewLineschemaTransfer()
 	for _, item := range lineschema.Items {
 		tItem := LineschemaTransferItem{
-			Src: *item,
-			Dst: item.TransferByType(),
+			Src: item.GetTypePath(),
+			Dst: *item,
 		}
-		transfer.Items = append(transfer.Items, tItem)
+		transfer.Replace(tItem)
 	}
 	return transfer.String()
 }
