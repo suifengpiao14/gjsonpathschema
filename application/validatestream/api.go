@@ -7,36 +7,37 @@ import (
 	"github.com/suifengpiao14/stream"
 )
 
-type LineschemaApi interface {
-	GetRoute() (method string, path string)
-	GetInputSchema() (lineschema string)
-	GetOutputSchema() (lineschema string)
+// lineschema 格式数据包
+type LineschemaPacketI interface {
+	GetRoute() (mehtod string, path string) // 网络传输地址，http可用method,path标记
+	UnpackSchema() (lineschema string)      // 解包配置 从网络数据到程序
+	PackSchema() (lineschema string)        // 封包配置 程序到网络
 }
 
-func RegisterLineschemaApi(api LineschemaApi) (err error) {
-	method, path := api.GetRoute()
-	idIn, idOut := MakeLineschemaApiKey(method, path)
-	inschema, outschema := api.GetInputSchema(), api.GetOutputSchema()
-	inLineschema, err := lineschema.ParseLineschema(inschema)
+func RegisterLineschemaPackage(pack LineschemaPacketI) (err error) {
+	method, path := pack.GetRoute()
+	unpackId, packId := MakeLineschemaApiKey(method, path)
+	unpackSchema, packSchema := pack.UnpackSchema(), pack.PackSchema()
+	unpackLineschema, err := lineschema.ParseLineschema(unpackSchema)
 	if err != nil {
 		return err
 	}
-	outLineschema, err := lineschema.ParseLineschema(outschema)
+	packLineschema, err := lineschema.ParseLineschema(packSchema)
 	if err != nil {
 		return err
 	}
-	err = RegisterLineschema(idIn, *inLineschema)
+	err = RegisterLineschema(unpackId, *unpackLineschema)
 	if err != nil {
 		return err
 	}
-	err = RegisterLineschema(idOut, *outLineschema)
+	err = RegisterLineschema(packId, *packLineschema)
 	if err != nil {
 		return err
 	}
 	return err
 }
 
-func GetApiStreamHandlerFn(api LineschemaApi) (inHandlerFns []stream.HandlerFn, outHandlerFns []stream.HandlerFn, err error) {
+func GetLineschemaPackageHandlerFn(api LineschemaPacketI) (unpackHandlerFns []stream.HandlerFn, packHandlerFns []stream.HandlerFn, err error) {
 	method, path := api.GetRoute()
 	idIn, idOut := MakeLineschemaApiKey(method, path)
 	inClineshema, err := GetClineschema(idIn)
@@ -48,17 +49,17 @@ func GetApiStreamHandlerFn(api LineschemaApi) (inHandlerFns []stream.HandlerFn, 
 	if err != nil {
 		return nil, nil, err
 	}
-	inHandlerFns = []stream.HandlerFn{
+	unpackHandlerFns = []stream.HandlerFn{
 		inClineshema.ValidateStreamFn(),
 		inClineshema.MergeDefaultStreamFn(),
 		inClineshema.TransferToFormatStreamFn(),
 	}
-	outHandlerFns = []stream.HandlerFn{
+	packHandlerFns = []stream.HandlerFn{
 		outClineshema.TransferToTypeStreamFn(),
 		outClineshema.ValidateStreamFn(),
 	}
 
-	return inHandlerFns, outHandlerFns, nil
+	return unpackHandlerFns, packHandlerFns, nil
 
 }
 

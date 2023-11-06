@@ -41,10 +41,10 @@ func (c _Clineschema) TransferToTypeStreamFn() (fn stream.HandlerFn) {
 	return MakeTransferHandler(c.transferToTypeGjsonPath)
 }
 
-func RegisterLineschema(id string, lschema lineschema.Lineschema) (err error) {
-	v, ok := clineschemaMap.Load(id)
+func RegisterLineschema(identify string, lschema lineschema.Lineschema) (err error) {
+	v, ok := clineschemaMap.Load(identify)
 	if ok {
-		err = errors.Errorf("id already registered,id:%s,value:%T", id, v)
+		err = errors.Errorf("id already registered,id:%s,value:%T", identify, v)
 		return err
 	}
 	err = lschema.Validate()
@@ -66,7 +66,7 @@ func RegisterLineschema(id string, lschema lineschema.Lineschema) (err error) {
 		return err
 	}
 	cJsonschema := _Clineschema{
-		ID:                        id,
+		ID:                        identify,
 		Lineschema:                lschema,
 		Jsonschema:                jschema,
 		transferToFormatGjsonPath: lschema.TransferToFormatGjsonPath(),
@@ -74,7 +74,7 @@ func RegisterLineschema(id string, lschema lineschema.Lineschema) (err error) {
 		DefaultJson:               defaultJson,
 		validateLoader:            jsonschemaLoader,
 	}
-	clineschemaMap.Store(id, &cJsonschema)
+	clineschemaMap.Store(identify, &cJsonschema)
 	return nil
 }
 
