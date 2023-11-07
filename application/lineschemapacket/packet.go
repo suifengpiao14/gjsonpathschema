@@ -37,35 +37,37 @@ func RegisterLineschemaPacket(pack LineschemaPacketI) (err error) {
 	return err
 }
 
-func GetLineschemaPackageHandlerFn(api LineschemaPacketI) (unpackHandlerFns []stream.HandlerFn, packHandlerFns []stream.HandlerFn, err error) {
+func ServerPackHandlers(api LineschemaPacketI) (packHandlers stream.PackHandlers, err error) {
 	method, path := api.GetRoute()
-	idIn, idOut := makeLineschemaPacketKey(method, path)
-	inClineshema, err := GetClineschema(idIn)
+	unpackId, packId := makeLineschemaPacketKey(method, path)
+	unpackLineschema, err := GetClineschema(unpackId)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	outClineshema, err := GetClineschema(idOut)
+	packLineschema, err := GetClineschema(packId)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	unpackHandlerFns = []stream.HandlerFn{
-		inClineshema.ValidatePacketFn(),
-		inClineshema.MergeDefaultFn(),
-		inClineshema.TransferToFormatFn(),
-	}
-	packHandlerFns = []stream.HandlerFn{
-		outClineshema.TransferToTypeFn(),
-		outClineshema.MergeDefaultFn(),
-		outClineshema.ValidatePacketFn(),
-	}
-
-	return unpackHandlerFns, packHandlerFns, nil
-
+	packHandlers = make(stream.PackHandlers, 0)
+	packHandlers.Add(
+		stream.NewPackHandler(unpackLineschema.ValidatePacketFn(), packLineschema.TransferToTypeFn()),
+		stream.NewPackHandler(unpackLineschema.MergeDefaultFn(), packLineschema.MergeDefaultFn()),
+		stream.NewPackHandler(unpackLineschema.TransferToFormatFn(), packLineschema.ValidatePacketFn()),
+	)
+	return packHandlers, nil
 }
 
-func makeLineschemaPacketKey(method string, path string) (idIn string, idOut string) {
-	idIn = fmt.Sprintf("%s-%s-input", method, path)
-	idOut = fmt.Sprintf("%s-%s-output", method, path)
-	return idIn, idOut
+func SDKPackHandlers(api LineschemaPacketI) (packHandlers stream.PackHandlers, err error) {
+	serverPackHandlers, err := ServerPackHandlers(api)
+	if err != nil {
+		return nil, err
+	}
+	return serverPackHandlers.Reverse(), nil
+}
+
+func makeLineschemaPacketKey(method string, path string) (unpackId string, packId string) {
+	unpackId = fmt.Sprintf("%s-%s-input", method, path)
+	packId = fmt.Sprintf("%s-%s-output", method, path)
+	return unpackId, packId
 }
