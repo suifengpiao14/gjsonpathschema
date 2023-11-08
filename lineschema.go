@@ -22,7 +22,16 @@ type Meta struct {
 }
 type Lineschema struct {
 	Meta  *Meta
-	Items []*LineschemaItem
+	Items LineschemaItems
+}
+
+type LineschemaItems []*LineschemaItem
+
+func (ls *LineschemaItems) Add(lineschemaItems ...*LineschemaItem) {
+	for _, l := range lineschemaItems {
+		l.InitPath()
+		*ls = append(*ls, l)
+	}
 }
 
 var jsonschemalineItemOrder = []string{
@@ -169,7 +178,7 @@ func (lineschema Lineschema) TransferToTypeGjsonPath() (gojsonpath string) {
 	}
 	return transfer.String()
 }
-func ReplacePathSpecalChar(path string) (newPath string) {
+func replacePathSpecalChar(path string) (newPath string) {
 	replacer := strings.NewReplacer("|", "\\|", "#", "\\#", "@", "\\@", "*", "\\*", "?", "\\?")
 	return replacer.Replace(path)
 }
@@ -197,7 +206,7 @@ func (l *Lineschema) JsonExample() (jsonExample string, err error) {
 				value = ""
 			}
 		}
-		key = ReplacePathSpecalChar(key)
+		key = replacePathSpecalChar(key)
 		existsResult := gjson.Get(jsonExample, key)
 		if existsResult.IsArray() || existsResult.IsObject() { //支持array、object 整体设置example
 			if str, ok := value.(string); ok {

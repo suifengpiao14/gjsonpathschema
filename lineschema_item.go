@@ -88,6 +88,12 @@ func (jItem LineschemaItem) String() (jsonStr string) {
 	return jsonStr
 }
 
+func (jItem *LineschemaItem) InitPath() {
+	if jItem.Path == "" {
+		jItem.Path = strings.ReplaceAll(jItem.Fullname, "[]", ".#")
+	}
+}
+
 func (jItem LineschemaItem) ToKVS(namespance string) (kvs kvstruct.KVS) {
 	jsonStr := jItem.String()
 	kvs = kvstruct.JsonToKVS(jsonStr, namespance)
