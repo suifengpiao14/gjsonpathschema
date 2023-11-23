@@ -153,31 +153,38 @@ func (l *Lineschema) JsonSchema() (jsonschemaByte []byte, err error) {
 	return jsonschemaByte, nil
 }
 
-// TransferToFormatGjsonPath 获取将当前数据按format 格式转换输出的转换路径,一般用于接口数据转go对象,省去int、bool和string类型转换
-func (lineschema Lineschema) TransferToFormatGjsonPath() (gojsonpath string) {
-	transfer := NewLineschemaTransfer()
+//Transfer 获取转换对象 源为type，目标为format
+func (lineschema Lineschema) Transfer() (transfers Transfers) {
+	transfers = make(Transfers, 0)
 	for _, item := range lineschema.Items {
-		tItem := LineschemaTransferItem{
-			Src: item.GetFormatPath(),
-			Dst: *item,
+
+		src := TransferUnit{
+			Path: item.Path,
+			Type: item.Type,
 		}
-		transfer.Replace(tItem)
+		typ := item.Type
+		transferFunc, ok := DefaultTransferFuncs.GetByType(item.Format)
+		if ok {
+			typ = transferFunc.Type
+		} else {
+			if strings.EqualFold(item.Type, Transfer_Type_array) || strings.EqualFold(item.Type, Transfer_Type_object) {
+				continue
+			}
+		}
+
+		dst := TransferUnit{
+			Path: item.Path,
+			Type: typ,
+		}
+		transfer := Transfer{
+			Src: src,
+			Dst: dst,
+		}
+		transfers.Replace(transfer)
 	}
-	return transfer.String()
+	return transfers
 }
 
-// TransferToTypeGjsonPath 获取将当前数据按type 格式转换输出的转换路径,一般用于go对象序列化数据转换为传输数据,省去int、bool和string类型转换
-func (lineschema Lineschema) TransferToTypeGjsonPath() (gojsonpath string) {
-	transfer := NewLineschemaTransfer()
-	for _, item := range lineschema.Items {
-		tItem := LineschemaTransferItem{
-			Src: item.GetTypePath(),
-			Dst: *item,
-		}
-		transfer.Replace(tItem)
-	}
-	return transfer.String()
-}
 func replacePathSpecalChar(path string) (newPath string) {
 	replacer := strings.NewReplacer("|", "\\|", "#", "\\#", "@", "\\@", "*", "\\*", "?", "\\?")
 	return replacer.Replace(path)

@@ -3,35 +3,33 @@ package lineschema
 import (
 	"bytes"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/spf13/cast"
+	"github.com/suifengpiao14/funcs"
 )
 
-type LineschemaTransferItem struct {
-	Src LineschemaItem `json:"src"`
-	Dst LineschemaItem `json:"dst"`
+type TransferUnit struct {
+	Path string `json:"path"`
+	Type string `json:"type"`
+}
+
+type Transfer struct {
+	Src TransferUnit `json:"src"`
+	Dst TransferUnit `json:"dst"`
 }
 
 // 外界不可以直接初始化,
-type _LineschemaTransfer []LineschemaTransferItem
+type Transfers []Transfer
 
-func NewLineschemaTransfer() (transfer _LineschemaTransfer) {
-	return _LineschemaTransfer{}
+func NewTransfer() (transfer Transfers) {
+	return Transfers{}
 }
 
 // 新增，存在替换
-func (transfer *_LineschemaTransfer) Replace(transferItems ...LineschemaTransferItem) {
+func (transfer *Transfers) Replace(transferItems ...Transfer) {
 	for _, transferItem := range transferItems {
-		switch strings.ToLower(transferItem.Dst.Type) {
-		case "array":
-			if _, ok := DefaultLineschemaTransferRelations.GetByFormat(transferItem.Dst.Format); !ok {
-				continue
-			}
-		case "object":
-			continue
-		}
-
 		exists := false
 		for i, item := range *transfer {
 			if item.Dst.Path == transferItem.Dst.Path {
@@ -46,10 +44,10 @@ func (transfer *_LineschemaTransfer) Replace(transferItems ...LineschemaTransfer
 	}
 }
 
-func (transfer _LineschemaTransfer) Reverse() (reversedTransfer _LineschemaTransfer) {
-	reversedTransfer = _LineschemaTransfer{}
+func (transfer Transfers) Reverse() (reversedTransfer Transfers) {
+	reversedTransfer = Transfers{}
 	for _, item := range transfer {
-		refersedItem := LineschemaTransferItem{
+		refersedItem := Transfer{
 			Src: item.Dst,
 			Dst: item.Src,
 		}
@@ -58,18 +56,26 @@ func (transfer _LineschemaTransfer) Reverse() (reversedTransfer _LineschemaTrans
 	return reversedTransfer
 }
 
-func (t _LineschemaTransfer) String() (gjsonPath string) {
-	m := &map[string]interface{}{}
-	for _, item := range t {
-		dst := item.Dst
-		switch strings.ToLower(dst.Type) {
-		case "array":
-			if _, ok := DefaultLineschemaTransferRelations.GetByFormat(dst.Format); !ok {
-				continue
-			}
-		case "object": // 数组、对象需要遍历内部结构,忽略外部的path
-			continue
+// AddTransferModify 在来源路径上增加上目标类型转换函数
+func (t Transfers) AddTransferModify() (newT Transfers) {
+	newT = make(Transfers, 0)
+	for _, transfer := range t {
+		transferFunc, ok := DefaultTransferFuncs.GetByType(transfer.Dst.Type)
+		if ok {
+			transfer.Src.Path = fmt.Sprintf("%s%s", transfer.Src.Path, transferFunc.ConvertFn)
 		}
+		newT = append(newT, transfer)
+	}
+
+	return newT
+
+}
+
+func (t Transfers) String() (gjsonPath string) {
+	newT := t.AddTransferModify()
+	m := &map[string]interface{}{}
+	for _, item := range newT {
+		dst := item.Dst
 		arr := strings.Split(dst.Path, ".")
 		l := len(arr)
 		ref := m
@@ -99,7 +105,7 @@ func (t _LineschemaTransfer) String() (gjsonPath string) {
 }
 
 // 生成路径
-func (t _LineschemaTransfer) recursionWrite(m *map[string]interface{}) (w bytes.Buffer, isArray bool) {
+func (t Transfers) recursionWrite(m *map[string]interface{}) (w bytes.Buffer, isArray bool) {
 	writeComma := false
 	for k, v := range *m {
 		if writeComma {
@@ -134,45 +140,145 @@ func (t _LineschemaTransfer) recursionWrite(m *map[string]interface{}) (w bytes.
 	return w, isArray
 }
 
-type LineschemaTransferRelation struct {
-	Format    string `json:"format"`    // 格式
+//PathModifyFn 路径修改函数
+type PathModifyFn func(path string) (newPath string)
+
+//PathModifyFnCameCase 将路径改成小驼峰格式
+func PathModifyFnCameCase(path string) (newPath string) {
+	newPath = funcs.CamelCase(path, false, false)
+	return
+}
+
+//PathModifyFnSnakeCase 将路径转为下划线格式
+func PathModifyFnSnakeCase(path string) (newPath string) {
+	newPath = funcs.SnakeCase(path)
+	return
+}
+
+//PathModifyFnLower 将路径转为小写格式
+func PathModifyFnLower(path string) (newPath string) {
+	return strings.ToLower(path)
+}
+
+//PathModifyFnTrimPrefixFn 生成剔除前缀修改函数
+func PathModifyFnTrimPrefixFn(prefix string) (pathModifyFn PathModifyFn) {
+	return func(path string) (newPath string) {
+		return strings.TrimPrefix(path, prefix)
+	}
+}
+
+//ModifyPath 修改转换路径
+func (t Transfers) ModifyPath(srcPathModifyFns []PathModifyFn, dstPathModifyFns []PathModifyFn) (nt Transfers) {
+	nt = make(Transfers, 0)
+	for _, l := range t {
+		src := l.Src
+		dst := l.Dst
+		for _, fn := range srcPathModifyFns {
+			src.Path = fn(src.Path)
+		}
+
+		for _, fn := range dstPathModifyFns {
+			dst.Path = fn(dst.Path)
+		}
+		item := Transfer{
+			Src: src,
+			Dst: dst,
+		}
+		nt.Replace(item)
+	}
+	return nt
+}
+
+type TransferFunc struct {
 	Type      string `json:"type"`      // 对应类型
 	ConvertFn string `json:"convertFn"` // 转换函数名称
 }
-type LineschemaTransferRelations []LineschemaTransferRelation
+type TransferFuncs []TransferFunc
 
-func (ms LineschemaTransferRelations) GetByFormat(format string) (m *LineschemaTransferRelation, ok bool) {
-	for _, m := range ms {
-		if m.Format == format {
-			return &m, true
-		}
-	}
-	return nil, false
-}
-func (ms LineschemaTransferRelations) GetByType(typ string, item *LineschemaItem) (m *LineschemaTransferRelation, ok bool) {
-	if strings.EqualFold(typ, "array") && item.Format != "" { // 数组类型修改类型兼容[1,2,3]格式
-		item.Path = fmt.Sprintf("%s.#", item.Path)
-		item.Type = item.Format
-		typ = item.Type
-	}
-	for _, m := range ms {
-		if m.Type == typ {
-			return &m, true
+func (ts TransferFuncs) GetByType(typ string) (t *TransferFunc, ok bool) {
+	for _, transfer := range ts {
+		if strings.EqualFold(transfer.Type, typ) {
+			return &transfer, true
 		}
 	}
 	return nil, false
 }
 
-// DefaultLineschemaTransferRelations schema format 转类型
-var DefaultLineschemaTransferRelations = LineschemaTransferRelations{
-	{Format: "int", Type: "int", ConvertFn: ".@tonum"},
-	{Format: "number", Type: "number", ConvertFn: ".@tonum"},
-	{Format: "bool", Type: "bool", ConvertFn: ".@tobool"},
-	{Format: "boolean", Type: "bool", ConvertFn: ".@tobool"},
-	{Format: "time", Type: "string", ConvertFn: ".@tostring"},
-	{Format: "datetime", Type: "string", ConvertFn: ".@tostring"},
-	{Format: "date", Type: "string", ConvertFn: ".@tostring"},
-	{Format: "email", Type: "string", ConvertFn: ".@tostring"},
-	{Format: "phone", Type: "string", ConvertFn: ".@tostring"},
-	{Format: "string", Type: "string", ConvertFn: ".@tostring"},
+// DefaultTransferFuncs schema format 转类型
+var DefaultTransferFuncs = TransferFuncs{
+	{Type: "int", ConvertFn: ".@tonum"},
+	{Type: "number", ConvertFn: ".@tonum"},
+	{Type: "float", ConvertFn: ".@tonum"},
+	{Type: "bool", ConvertFn: ".@tobool"},
+	{Type: "string", ConvertFn: ".@tostring"},
+}
+
+func ToGoTypeTransfer(dst any) (lineschemaTransfer Transfers) {
+	if dst == nil {
+		return nil
+	}
+	rv := reflect.Indirect(reflect.ValueOf(dst))
+	switch rv.Kind() {
+	case reflect.Array:
+		return str2StructTransfer(rv, "#")
+	case reflect.Struct:
+		return str2StructTransfer(rv, "")
+	case reflect.Int64, reflect.Float64, reflect.Int:
+		return str2SimpleTypeTransfer("int", "")
+	case reflect.Bool:
+		return str2SimpleTypeTransfer("bool", "")
+	}
+	return
+}
+
+func str2SimpleTypeTransfer(typ string, path string) (lineschemaTransfer Transfers) {
+	if path == "" {
+		path = "@this"
+	}
+	return Transfers{
+		Transfer{
+			Dst: TransferUnit{
+				Path: path,
+				Type: typ,
+			},
+			Src: TransferUnit{
+				Path: path,
+				Type: "string",
+			},
+		},
+	}
+}
+
+func str2StructTransfer(rv reflect.Value, prefix string) (lineschemaTransfer Transfers) {
+	if rv.Kind() != reflect.Struct {
+		return nil
+	}
+	rt := rv.Type()
+	if prefix != "" {
+		prefix = strings.TrimRight(prefix, ".")
+		prefix = fmt.Sprintf("%s.", prefix)
+	}
+	lineschemaTransfer = make(Transfers, 0)
+	for i := 0; i < rt.NumField(); i++ {
+		field := rt.Field(i)
+		typ := field.Type.String()
+		tag := field.Tag.Get("json")
+		if tag == "" || tag == "-" {
+			continue // Skip fields without json tag or with "-" tag
+		}
+		path := fmt.Sprintf("%s%s", prefix, typ)
+		linschemaT := Transfer{
+			Dst: TransferUnit{
+				Path: path,
+				Type: typ,
+			},
+			Src: TransferUnit{
+				Path: path,
+				Type: "string",
+			},
+		}
+		lineschemaTransfer = append(lineschemaTransfer, linschemaT)
+	}
+
+	return lineschemaTransfer
 }

@@ -52,30 +52,9 @@ type LineschemaItem struct {
 	Lineschema       *Lineschema `json:"-"`
 }
 
-func (item LineschemaItem) GetFormatPath() (newLineschemaItem LineschemaItem) {
-	transferConfig, ok := DefaultLineschemaTransferRelations.GetByFormat(item.Format)
-	if !ok {
-		return item
-	}
-	newLineschemaItem = item
-	newLineschemaItem.Path = fmt.Sprintf("%s%s", item.Path, transferConfig.ConvertFn)
-	newLineschemaItem.Type = transferConfig.Type
-	return newLineschemaItem
-}
-func (item LineschemaItem) GetTypePath() (newLineschemaItem LineschemaItem) {
-	transferConfig, ok := DefaultLineschemaTransferRelations.GetByType(item.Type, &item)
-	if !ok {
-		return item
-	}
-	newLineschemaItem = item
-	newLineschemaItem.Path = fmt.Sprintf("%s%s", item.Path, transferConfig.ConvertFn)
-	newLineschemaItem.Type = transferConfig.Type
-	return newLineschemaItem
-}
-
 const (
-	LineschemaTransfer_Type_object = "object"
-	LineschemaTransfer_Type_array  = "array"
+	Transfer_Type_object = "object"
+	Transfer_Type_array  = "array"
 )
 
 func (jItem LineschemaItem) String() (jsonStr string) {
