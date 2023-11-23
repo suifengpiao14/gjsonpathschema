@@ -28,7 +28,7 @@ func TestTransfer(t *testing.T) {
 	require.NoError(t, err)
 	//input := `{"code":200,"message":"ok","items":[{"id":1,"title":"test1","windowIds":[1,2,3],"windowIds1":[1,2,3],"windowIds2":[1,2,3]},{"id":2,"title":"test2","windowIds":[4,5,6],"windowIds1":[4,5,6]},"windowIds2":[4,5,6]}],"pagination":{"index":0,"size":10,"total":100}}`
 	//input := `{"code":"200","message":"ok"}`
-	pathMap := lschema.Transfer().String()
+	pathMap := lschema.TransferToFormat().String()
 	excepted := `{code:code.@tonum,message:message.@tostring,items:{title:items.#.title.@tostring,windowIds:items.#.windowIds.#.@tostring,windowIds1:items.#.windowIds1.#.@tonum,windowIds2:items.#.windowIds2.#.@tostring,id:items.#.id.@tostring}|@group,pagination:{index:pagination.index.@tostring,size:pagination.size.@tostring,total:pagination.total.@tostring}}`
 	//assert.Equal(t, excepted, pathMap)
 	_ = excepted
