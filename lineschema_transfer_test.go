@@ -1,6 +1,7 @@
 package lineschema_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 
@@ -79,6 +80,30 @@ func TestToGoTypeTransfer(t *testing.T) {
 		fmt.Println(lineSchema)
 	})
 
+	t.Run("complex", func(t *testing.T) {
+		packschema := `version=http://json-schema.org/draft-07/schema#,id=out
+fullname=code,format=int,required,title=业务状态码,default=0,comment=业务状态码,example=0
+fullname=message,required,title=业务提示,default=ok,comment=业务提示,example=ok
+fullname=items,type=array,title=-,comment=-
+fullname=items[].id,format=int,required,title=主键,comment=主键,example=1
+fullname=items[].name,required,title=项目标识,comment=项目标识,example=advertise
+fullname=items[].title,required,title=名称,comment=名称
+fullname=items[].config,required,title=项目curd配置内容,comment=项目curd配置内容
+fullname=items[].createdAt,format=datetime,required,title=创建时间,comment=创建时间,example=2023-01-1200:00:00
+fullname=items[].updatedAt,format=datetime,required,title=修改时间,comment=修改时间,example=2023-01-3000:00:00
+fullname=pagination.index,format=int,required,title=页索引,0开始,default=0,comment=页索引,0开始,example=0
+fullname=pagination.size,format=int,required,title=每页数量,default=10,comment=每页数量,example=10
+fullname=pagination.total,format=int,required,title=总数,comment=总数,example=60`
+		lschema, err := lineschema.ParseLineschema(packschema)
+		require.NoError(t, err)
+		gjsonPath := lschema.TransferToFormat().Reverse().String()
+		//gjsonPath = `{code:code.@tostring,message:message.@tostring,items:{config:items.#.config.@tostring,createdAt:items.#.createdAt.@tostring,updatedAt:items.#.updatedAt.@tostring,id:items.#.id.@tostring,name:items.#.name.@tostring,title:items.#.title.@tostring}|@group,pagination:{index:pagination.index.@tostring,size:pagination.size.@tostring,total:pagination.total.@tostring}}`
+		fmt.Println(gjsonPath)
+		data := `{"code":0,"message":"","items":[{"id":2,"name":"advertise1","title":"广aa告","config":"{\"navs\":[1]}","createdAt":"","updatedAt":""}],"pagination":{"index":0,"size":10,"total":1}}`
+		out := gjson.Get(data, gjsonPath).String()
+		fmt.Println(out)
+	})
+
 }
 
 func TestStructArrayPath(t *testing.T) {
@@ -99,4 +124,20 @@ func TestValuePath(t *testing.T) {
 	path := `@this.@tonum`
 	newJson := gjson.Get(jsonStr, path).String()
 	fmt.Println(newJson)
+}
+
+type UerNoJsonTag struct {
+	Name      string
+	ID        int
+	CreatedAt string
+	Update_at string
+}
+
+func TestJsonUmarsh(t *testing.T) {
+	u := UerNoJsonTag{}
+	data := `{"name":"张三","id":2,"createdAt":"2023-11-24 16:10:00","Update_at":"2023-11-24 16:10:00"}`
+	json.Unmarshal([]byte(data), &u)
+	b, _ := json.Marshal(u)
+	s := string(b)
+	fmt.Println(s)
 }

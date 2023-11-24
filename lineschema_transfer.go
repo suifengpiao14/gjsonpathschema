@@ -135,14 +135,17 @@ func (t Transfers) recursionWrite(m *map[string]interface{}) (w bytes.Buffer) {
 		}
 		subw := t.recursionWrite(ref)
 		subwKey := subw.String()
+		if !strings.HasSuffix(subwKey, "@group") { //@group函数执行后，会自动增加外层{} ，使用{} 将子内容包裹，表示对象整体
+			subwKey = fmt.Sprintf("{%s}", subwKey)
+		}
 		var subStr string
 		switch k {
 		case "#":
-			subStr = fmt.Sprintf("{%s}|@group", subwKey)
+			subStr = fmt.Sprintf("%s|@group", subwKey)
 		case "":
-			subStr = fmt.Sprintf("{%s}", subwKey)
+			subStr = subwKey
 		default:
-			subStr = fmt.Sprintf("{%s:%s}", k, subwKey)
+			subStr = fmt.Sprintf("%s:%s", k, subwKey)
 		}
 		w.WriteString(subStr)
 	}
@@ -160,7 +163,13 @@ func PathModifyFnCameCase(path string) (newPath string) {
 
 //PathModifyFnSnakeCase 将路径转为下划线格式
 func PathModifyFnSnakeCase(path string) (newPath string) {
-	newPath = funcs.SnakeCase(path)
+	arr := strings.Split(path, ".")
+	l := len(arr)
+	newArr := make([]string, l)
+	for i := 0; i < l; i++ {
+		newArr[i] = funcs.SnakeCase(arr[i])
+	}
+	newPath = strings.Join(newArr, ".")
 	return
 }
 
@@ -245,8 +254,6 @@ func ToGoTypeTransfer(dst any) (lineschemaTransfer Transfers) {
 }
 
 func toGoTypeTransfer(rt reflect.Type, prefix string) (lineschemaTransfer Transfers) {
-	kind := rt.Kind()
-	fmt.Println(kind)
 	switch rt.Kind() {
 	case reflect.Array, reflect.Slice:
 		lineschemaTransfer = toGoTypeTransfer(rt.Elem(), fmt.Sprintf("%s.#", prefix))
@@ -287,7 +294,7 @@ func str2SimpleTypeTransfer(typ string, path string) (lineschemaTransfer Transfe
 	}
 }
 
-func str2StructTransfer(rt reflect.Type, prefix string) (lineschemaTransfer Transfers) {
+func str2StructTransfer(rt reflect.Type, prefix string) (transfers Transfers) {
 	if rt.Kind() != reflect.Struct {
 		return nil
 	}
@@ -295,17 +302,38 @@ func str2StructTransfer(rt reflect.Type, prefix string) (lineschemaTransfer Tran
 		prefix = strings.TrimRight(prefix, ".")
 		prefix = fmt.Sprintf("%s.", prefix)
 	}
-	lineschemaTransfer = make(Transfers, 0)
+	transfers = make(Transfers, 0)
 	for i := 0; i < rt.NumField(); i++ {
 		field := rt.Field(i)
 		typ := field.Type.String()
 		tag := field.Tag.Get("json")
-		if tag == "" || tag == "-" {
+		if tag == "-" {
 			continue // Skip fields without json tag or with "-" tag
+		}
+
+		isString := strings.Contains(tag, ",string")
+		if isString {
+			typ = "string"
 		}
 		commIndex := strings.Index(tag, ",")
 		if commIndex > -1 {
 			tag = tag[:commIndex] // 取,前的内容
+		}
+
+		fieldType := field.Type
+		filedTK := field.Type.Kind()
+		switch filedTK {
+		case reflect.Slice, reflect.Array, reflect.Struct:
+			if tag != "" {
+				tag = fmt.Sprintf(".%s", tag)
+			}
+			subPrefix := fmt.Sprintf("%s%s", prefix, tag)
+			subTransfer := str2StructTransfer(fieldType, subPrefix)
+			transfers.Replace(subTransfer...)
+			continue // 复合类型，只收集子值
+		}
+		if tag == "" {
+			tag = field.Name // 根据json.Umarsh/Marsh 发现未写json tag时，默认使用列名称，此处兼容保持一致
 		}
 		path := fmt.Sprintf("%s%s", prefix, tag)
 		linschemaT := Transfer{
@@ -318,19 +346,19 @@ func str2StructTransfer(rt reflect.Type, prefix string) (lineschemaTransfer Tran
 				Type: "string",
 			},
 		}
-		lineschemaTransfer = append(lineschemaTransfer, linschemaT)
+		transfers = append(transfers, linschemaT)
 	}
 
-	return lineschemaTransfer
+	return transfers
 }
 
 //TransferPackHandler 转换数据stream 生成函数
 func TransferPackHandler(beforGjsonPath string, afterGjsonPath string) (packHandler stream.PackHandler) {
 	packHandler = stream.NewPackHandler(func(ctx context.Context, input []byte) (out []byte, err error) {
-		if afterGjsonPath == "" {
+		if beforGjsonPath == "" {
 			return input, nil
 		}
-		str := gjson.GetBytes(input, afterGjsonPath).String()
+		str := gjson.GetBytes(input, beforGjsonPath).String()
 		out = []byte(str)
 		return out, nil
 	}, func(ctx context.Context, input []byte) (out []byte, err error) {
