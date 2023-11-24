@@ -303,6 +303,10 @@ func str2StructTransfer(rt reflect.Type, prefix string) (lineschemaTransfer Tran
 		if tag == "" || tag == "-" {
 			continue // Skip fields without json tag or with "-" tag
 		}
+		commIndex := strings.Index(tag, ",")
+		if commIndex > -1 {
+			tag = tag[:commIndex] // 取,前的内容
+		}
 		path := fmt.Sprintf("%s%s", prefix, tag)
 		linschemaT := Transfer{
 			Dst: TransferUnit{
