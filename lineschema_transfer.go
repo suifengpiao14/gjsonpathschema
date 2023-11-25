@@ -152,16 +152,16 @@ func (t Transfers) recursionWrite(m *map[string]interface{}) (w bytes.Buffer) {
 	return w
 }
 
-//PathModifyFn 路径修改函数
+// PathModifyFn 路径修改函数
 type PathModifyFn func(path string) (newPath string)
 
-//PathModifyFnCameCase 将路径改成小驼峰格式
+// PathModifyFnCameCase 将路径改成小驼峰格式
 func PathModifyFnCameCase(path string) (newPath string) {
 	newPath = funcs.CamelCase(path, false, false)
 	return
 }
 
-//PathModifyFnSnakeCase 将路径转为下划线格式
+// PathModifyFnSnakeCase 将路径转为下划线格式
 func PathModifyFnSnakeCase(path string) (newPath string) {
 	arr := strings.Split(path, ".")
 	l := len(arr)
@@ -173,26 +173,29 @@ func PathModifyFnSnakeCase(path string) (newPath string) {
 	return
 }
 
-//PathModifyFnLower 将路径转为小写格式
+// PathModifyFnLower 将路径转为小写格式
 func PathModifyFnLower(path string) (newPath string) {
 	return strings.ToLower(path)
 }
 
-//PathModifyFnTrimPrefixFn 生成剔除前缀修改函数
+// PathModifyFnTrimPrefixFn 生成剔除前缀修改函数
 func PathModifyFnTrimPrefixFn(prefix string) (pathModifyFn PathModifyFn) {
 	return func(path string) (newPath string) {
 		return strings.TrimPrefix(path, prefix)
 	}
 }
 
-//ModifyPath 修改转换路径
+// ModifyPath 修改转换路径
 func (t Transfers) ModifyDstPath(dstPathModifyFns ...PathModifyFn) (nt Transfers) {
 	nt = make(Transfers, 0)
 	for _, l := range t {
 		src := l.Src
 		dst := l.Dst
 		for _, fn := range dstPathModifyFns {
-			dst.Path = fn(dst.Path)
+			if fn != nil {
+				dst.Path = fn(dst.Path)
+			}
+
 		}
 		item := Transfer{
 			Src: src,
@@ -208,7 +211,9 @@ func (t Transfers) ModifySrcPath(srcPathModifyFns ...PathModifyFn) (nt Transfers
 		src := l.Src
 		dst := l.Dst
 		for _, fn := range srcPathModifyFns {
-			src.Path = fn(src.Path)
+			if fn != nil {
+				src.Path = fn(src.Path)
+			}
 		}
 		item := Transfer{
 			Src: src,
@@ -243,7 +248,7 @@ var DefaultTransferFuncs = TransferFuncs{
 	{Type: "string", ConvertFn: ".@tostring"},
 }
 
-//ToGoTypeTransfer 根据go结构体json tag以及类型生成转换
+// ToGoTypeTransfer 根据go结构体json tag以及类型生成转换
 func ToGoTypeTransfer(dst any) (lineschemaTransfer Transfers) {
 	if dst == nil {
 		return nil
@@ -352,7 +357,7 @@ func str2StructTransfer(rt reflect.Type, prefix string) (transfers Transfers) {
 	return transfers
 }
 
-//TransferPackHandler 转换数据stream 生成函数
+// TransferPackHandler 转换数据stream 生成函数
 func TransferPackHandler(beforGjsonPath string, afterGjsonPath string) (packHandler stream.PackHandler) {
 	packHandler = stream.NewPackHandler(func(ctx context.Context, input []byte) (out []byte, err error) {
 		if beforGjsonPath == "" {
