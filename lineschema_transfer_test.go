@@ -116,7 +116,10 @@ fullname=navs[].sort,format=int,required,title=排序,comment=排序`
 		lschema, err := lineschema.ParseLineschema(packschema)
 		require.NoError(t, err)
 		gjsonPath := lschema.TransferToFormat().Reverse().String()
+		data := `{"code":0,"message":"","navs":[{"id":1,"name":"creative","title":"广告创意","route":"creativeList","sort":99},{"id":2,"name":"plan","title":"广告计划","route":"planList","sort":98},{"id":3,"name":"window","title":"橱窗","route":"windowList","sort":97}]}`
 		fmt.Println(gjsonPath)
+		out := gjson.Get(data, gjsonPath).String()
+		fmt.Println(out)
 
 	})
 

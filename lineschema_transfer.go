@@ -139,6 +139,7 @@ func (t Transfers) recursionWrite(m *map[string]interface{}) (w bytes.Buffer, is
 		if !isWrapBraces { //不会被{}包裹,则使用{} 将子内容包裹，表示对象整体(@group 执行后会自动生成{},此处要排除这种情况)
 			subwKey = fmt.Sprintf("{%s}", subwKey)
 		}
+		isWrapBraces = false // 只作用一次
 		var subStr string
 		switch k {
 		case "#":
