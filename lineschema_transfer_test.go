@@ -84,8 +84,8 @@ func TestToGoTypeTransfer(t *testing.T) {
 		packschema := `version=http://json-schema.org/draft-07/schema#,id=out
 fullname=code,format=int,required,title=业务状态码,default=0,comment=业务状态码,example=0
 fullname=message,required,title=业务提示,default=ok,comment=业务提示,example=ok
-fullname=items,type=array,title=-,comment=-
 fullname=items[].id,format=int,required,title=主键,comment=主键,example=1
+fullname=items,type=array,title=-,comment=-
 fullname=items[].name,required,title=项目标识,comment=项目标识,example=advertise
 fullname=items[].title,required,title=名称,comment=名称
 fullname=items[].config,required,title=项目curd配置内容,comment=项目curd配置内容
@@ -117,6 +117,20 @@ fullname=navs[].sort,format=int,required,title=排序,comment=排序`
 		require.NoError(t, err)
 		gjsonPath := lschema.TransferToFormat().Reverse().String()
 		data := `{"code":0,"message":"","navs":[{"id":1,"name":"creative","title":"广告创意","route":"creativeList","sort":99},{"id":2,"name":"plan","title":"广告计划","route":"planList","sort":98},{"id":3,"name":"window","title":"橱窗","route":"windowList","sort":97}]}`
+		fmt.Println(gjsonPath)
+		out := gjson.Get(data, gjsonPath).String()
+		fmt.Println(out)
+
+	})
+	t.Run("object with no children", func(t *testing.T) {
+		packschema := `version=http://json-schema.org/draft-07/schema#,id=out
+fullname=code,format=int,required,title=业务状态码,default=0,comment=业务状态码,example=0
+fullname=message,required,title=业务提示,default=ok,comment=业务提示,example=ok
+fullname=uiSchema,type=object,required,title=uiSchema对象,comment=uiSchema对象`
+		lschema, err := lineschema.ParseLineschema(packschema)
+		require.NoError(t, err)
+		gjsonPath := lschema.TransferToFormat().Reverse().String()
+		data := `{"code":0,"message":"","uiSchema":""}`
 		fmt.Println(gjsonPath)
 		out := gjson.Get(data, gjsonPath).String()
 		fmt.Println(out)

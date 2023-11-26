@@ -153,7 +153,7 @@ func (l *Lineschema) JsonSchema() (jsonschemaByte []byte, err error) {
 	return jsonschemaByte, nil
 }
 
-//TransferToFormat 获取转换对象 源为type，目标为format
+// TransferToFormat 获取转换对象 源为type，目标为format
 func (lineschema Lineschema) TransferToFormat() (transfers Transfers) {
 	transfers = make(Transfers, 0)
 	for _, item := range lineschema.Items {
@@ -166,10 +166,6 @@ func (lineschema Lineschema) TransferToFormat() (transfers Transfers) {
 		transferFunc, ok := DefaultTransferFuncs.GetByType(item.Format)
 		if ok {
 			typ = transferFunc.Type
-		} else {
-			if strings.EqualFold(item.Type, Transfer_Type_array) || strings.EqualFold(item.Type, Transfer_Type_object) {
-				continue
-			}
 		}
 
 		dst := TransferUnit{

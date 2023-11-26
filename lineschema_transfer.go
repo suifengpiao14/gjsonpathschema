@@ -65,7 +65,7 @@ func (t Transfers) addTransferModify() (newT Transfers) {
 	for _, transfer := range t {
 		transferFunc, ok := DefaultTransferFuncs.GetByType(transfer.Dst.Type)
 		if ok {
-			transfer.Src.Path = fmt.Sprintf("%s%s", transfer.Src.Path, transferFunc.ConvertFn)
+			transfer.Src.Path = fmt.Sprintf("%s%s", transfer.Src.Path, transferFunc.ConvertFn) //存在映射函数,则修改,否则保持原样
 		}
 		newT = append(newT, transfer)
 	}
@@ -95,14 +95,24 @@ func (t Transfers) String() (gjsonPath string) {
 		l := len(arr)
 		ref := m
 		for i, key := range arr {
-			if l == i+1 {
-				(*ref)[key] = item.Src.Path
+			if l == i+1 { // 处理最后一个
+				if (*ref)[key] == nil {
+					(*ref)[key] = item.Src.Path // 第一次默认设置为字符串类型, 如果已经存在,不再修改成字符串(//当类型为 object,array 的在后面,之前有子元素时,忽略)
+				}
+
 				continue
 			}
-			if _, ok := (*ref)[key]; !ok {
+			var ok bool
+			if _, ok = (*ref)[key]; !ok {
 				(*ref)[key] = &map[string]interface{}{}
 			}
-			ref = (*ref)[key].(*map[string]interface{}) //递进
+			if ok {
+				_, ok = (*ref)[key].(*map[string]interface{}) //检验类型( //当类型为 object,array 的在前面先设置时 (fullname=items, type=array )其类型不为map)
+			}
+			if !ok {
+				(*ref)[key] = &map[string]interface{}{}
+			}
+			ref = (*ref)[key].(*map[string]interface{}) // 本次递进一定成功
 		}
 
 	}

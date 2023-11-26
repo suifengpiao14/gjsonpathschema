@@ -52,11 +52,6 @@ type LineschemaItem struct {
 	Lineschema       *Lineschema `json:"-"`
 }
 
-const (
-	Transfer_Type_object = "object"
-	Transfer_Type_array  = "array"
-)
-
 func (jItem LineschemaItem) String() (jsonStr string) {
 	copy := jItem
 	copy.Required = false // 转换成json schema时 required 单独处理
