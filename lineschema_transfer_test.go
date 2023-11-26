@@ -104,6 +104,22 @@ fullname=pagination.total,format=int,required,title=总数,comment=总数,exampl
 		fmt.Println(out)
 	})
 
+	t.Run("complex2", func(t *testing.T) {
+		packschema := `version=http://json-schema.org/draft-07/schema#,id=out
+fullname=code,format=int,required,title=业务状态码,default=0,comment=业务状态码,example=0
+fullname=message,required,title=业务提示,default=ok,comment=业务提示,example=ok
+fullname=navs[].id,format=int,required,title=主键,comment=主键
+fullname=navs[].name,required,title=名称,comment=名称
+fullname=navs[].title,required,title=标题,comment=标题
+fullname=navs[].route,required,title=路由,comment=路由
+fullname=navs[].sort,format=int,required,title=排序,comment=排序`
+		lschema, err := lineschema.ParseLineschema(packschema)
+		require.NoError(t, err)
+		gjsonPath := lschema.TransferToFormat().Reverse().String()
+		fmt.Println(gjsonPath)
+
+	})
+
 }
 
 func TestStructArrayPath(t *testing.T) {
