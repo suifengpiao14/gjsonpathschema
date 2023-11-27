@@ -134,9 +134,36 @@ fullname=uiSchema,type=object,required,title=uiSchema对象,comment=uiSchema对�
 		fmt.Println(gjsonPath)
 		out := gjson.Get(data, gjsonPath).String()
 		fmt.Println(out)
-
+	})
+	t.Run("deep array", func(t *testing.T) {
+		packschema := `version=http://json-schema.org/draft-07/schema#,id=out
+fullname=services[].servers[].name,required,title=服务标识,comment=服务标识,example=dev
+fullname=services[].servers[].title,required,title=服务名称,comment=服务名称,example=dev
+`
+		lschema, err := lineschema.ParseLineschema(packschema)
+		require.NoError(t, err)
+		gjsonPath := lschema.TransferToFormat().Reverse().String()
+		data := `{"code":0,"message":"","services":[{"id":1,"name":"advertise","title":"广告服务","createdAt":"2023-11-25 22:32:16","updatedAt":"2023-11-25 22:32:16","servers":[{"name":"dev","title":"广告服务开发环境"},{"name":"dev2","title":"广告服务开发环境"}]}],"pagination":{"index":0,"size":10,"total":1}}`
+		fmt.Println(gjsonPath)
+		out := gjson.Get(data, gjsonPath).String()
+		excepted := `{"services":[{"servers":{"name":"dev","title":"广告服务开发环境"}},{"servers":{"name":"dev2","title":"广告服务开发环境"}}]}`
+		assert.Equal(t, excepted, out)
 	})
 
+}
+
+func TestDeepArray(t *testing.T) {
+	jsonStr := `{"code":0,"message":"","services":[{"id":1,"name":"advertise","title":"广告服务","createdAt":"2023-11-25 22:32:16","updatedAt":"2023-11-25 22:32:16","servers":[[{"name":"dev","title":"广告服务开发环境"}]]}],"pagination":{"index":0,"size":10,"total":1}}`
+	path := `{services:{servers:{name:services.#.servers.#.#(name="dev")#.name.@tostring|@flatten|@flatten,title:services.#.servers.#.#.title.@tostring}|@group}|@group}`
+	newJson := gjson.Get(jsonStr, path).String()
+
+	fmt.Println(newJson)
+}
+func TestArray(t *testing.T) {
+	jsonStr := `[{"name":"test1"}]`
+	path := `#.name`
+	newJson := gjson.Get(jsonStr, path).String()
+	fmt.Println(newJson)
 }
 
 func TestStructArrayPath(t *testing.T) {

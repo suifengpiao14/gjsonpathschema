@@ -67,6 +67,11 @@ func (t Transfers) addTransferModify() (newT Transfers) {
 		if ok {
 			transfer.Src.Path = fmt.Sprintf("%s%s", transfer.Src.Path, transferFunc.ConvertFn) //存在映射函数,则修改,否则保持原样
 		}
+		arrDepth := strings.Count(transfer.Src.Path, "#.")
+		for i := 1; i < arrDepth; i++ { // 多维数组，拍平为一维数组（实际取值为字符串、整数等类型）
+			transfer.Src.Path = fmt.Sprintf("%s|@flatten", transfer.Src.Path)
+		}
+
 		newT = append(newT, transfer)
 	}
 
