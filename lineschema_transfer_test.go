@@ -29,13 +29,12 @@ func TestTransfer(t *testing.T) {
 	`
 	lschema, err := lineschema.ParseLineschema(lschemaRaw)
 	require.NoError(t, err)
-	//input := `{"code":200,"message":"ok","items":[{"id":1,"title":"test1","windowIds":[1,2,3],"windowIds1":[1,2,3],"windowIds2":[1,2,3]},{"id":2,"title":"test2","windowIds":[4,5,6],"windowIds1":[4,5,6]},"windowIds2":[4,5,6]}],"pagination":{"index":0,"size":10,"total":100}}`
+	input := `{"code":200,"message":"ok","items":[{"id":1,"title":"test1","windowIds":[1,2,3],"windowIds1":[1,2,3],"windowIds2":[1,2,3]},{"id":2,"title":"test2","windowIds":[4,5,6],"windowIds1":[4,5,6]},"windowIds2":[4,5,6]}],"pagination":{"index":0,"size":10,"total":100}}`
 	//input := `{"code":"200","message":"ok"}`
 	pathMap := lschema.TransferToFormat().String()
-	excepted := `{code:code.@tonum,message:message.@tostring,items:{title:items.#.title.@tostring,windowIds:items.#.windowIds.#.@tostring,windowIds1:items.#.windowIds1.#.@tonum,windowIds2:items.#.windowIds2.#.@tostring,id:items.#.id.@tostring}|@group,pagination:{index:pagination.index.@tostring,size:pagination.size.@tostring,total:pagination.total.@tostring}}`
-	//assert.Equal(t, excepted, pathMap)
-	_ = excepted
 	fmt.Println(pathMap)
+	out := gjson.Get(input, pathMap).String()
+	fmt.Println(out)
 
 }
 
@@ -137,6 +136,7 @@ fullname=uiSchema,type=object,required,title=uiSchema对象,comment=uiSchema对�
 	})
 	t.Run("deep array", func(t *testing.T) {
 		packschema := `version=http://json-schema.org/draft-07/schema#,id=out
+		fullname=services[].name,required,title=项目标识,comment=项目标识,example=advertise
 fullname=services[].servers[].name,required,title=服务标识,comment=服务标识,example=dev
 fullname=services[].servers[].title,required,title=服务名称,comment=服务名称,example=dev
 `
@@ -146,15 +146,39 @@ fullname=services[].servers[].title,required,title=服务名称,comment=服务�
 		data := `{"code":0,"message":"","services":[{"id":1,"name":"advertise","title":"广告服务","createdAt":"2023-11-25 22:32:16","updatedAt":"2023-11-25 22:32:16","servers":[{"name":"dev","title":"广告服务开发环境"},{"name":"dev2","title":"广告服务开发环境"}]}],"pagination":{"index":0,"size":10,"total":1}}`
 		fmt.Println(gjsonPath)
 		out := gjson.Get(data, gjsonPath).String()
-		excepted := `{"services":[{"servers":{"name":"dev","title":"广告服务开发环境"}},{"servers":{"name":"dev2","title":"广告服务开发环境"}}]}`
+		excepted := `{"services":[{"name":"advertise","servers":[{"name":"dev","title":"广告服务开发环境"},{"name":"dev2","title":"广告服务开发环境"}]}]}`
 		assert.Equal(t, excepted, out)
+	})
+
+	t.Run("deep array2 ", func(t *testing.T) {
+		packschema := `version=http://json-schema.org/draft-07/schema#,id=out
+		fullname=services[].name,required,title=项目标识,comment=项目标识,example=advertise
+fullname=services[].serverIds[],required,format=int,title=服务标识,comment=服务标识,example=dev
+`
+		lschema, err := lineschema.ParseLineschema(packschema)
+		require.NoError(t, err)
+		gjsonPath := lschema.TransferToFormat().Reverse().String()
+		data := `{"code":0,"message":"","services":[{"name":"advertise","serverIds":[1,2,3]}],"pagination":{"index":0,"size":10,"total":1}}`
+		fmt.Println(gjsonPath)
+		out := gjson.Get(data, gjsonPath).String()
+		fmt.Println(out)
+		//excepted := `{"services":[{"name":"advertise","servers":[{"name":"dev","title":"广告服务开发环境"},{"name":"dev2","title":"广告服务开发环境"}]}]}`
+		//assert.Equal(t, excepted, out)
 	})
 
 }
 
+func TestDeepArrWithSimplArr(t *testing.T) {
+	gjsonPath := `{services:{name:services.#.name.@tostring,serverIds:services.#.serverIds.#.@tostring}|@group}`
+	data := `{"code":0,"message":"","services":[{"name":"advertise","serverIds":[1,2,3]}],"pagination":{"index":0,"size":10,"total":1}}`
+	out := gjson.Get(data, gjsonPath).String()
+	fmt.Println(out)
+
+}
+
 func TestDeepArray(t *testing.T) {
-	jsonStr := `{"code":0,"message":"","services":[{"id":1,"name":"advertise","title":"广告服务","createdAt":"2023-11-25 22:32:16","updatedAt":"2023-11-25 22:32:16","servers":[[{"name":"dev","title":"广告服务开发环境"}]]}],"pagination":{"index":0,"size":10,"total":1}}`
-	path := `{services:{servers:{name:services.#.servers.#.#(name="dev")#.name.@tostring|@flatten|@flatten,title:services.#.servers.#.#.title.@tostring}|@group}|@group}`
+	jsonStr := `{"code":0,"message":"","services":[{"id":1,"name":"advertise","title":"广告服务","createdAt":"2023-11-25 22:32:16","updatedAt":"2023-11-25 22:32:16","servers":[{"name":"dev","title":"广告服务开发环境"},{"name":"dev2","title":"广告服务开发环境"}]}],"pagination":{"index":0,"size":10,"total":1}}`
+	path := `{services:{name:services.#.name.@tostring,servers:[{name:services.#.servers.#.name.@tostring|@flatten,title:services.#.servers.#.title.@tostring|@flatten}|@group}]|@group}`
 	newJson := gjson.Get(jsonStr, path).String()
 
 	fmt.Println(newJson)

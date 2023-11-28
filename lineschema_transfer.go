@@ -121,14 +121,14 @@ func (t Transfers) String() (gjsonPath string) {
 		}
 
 	}
-	w, _ := t.recursionWrite(m)
+	w, _ := t.recursionWrite(m, false)
 	gjsonPath = w.String()
 
 	return gjsonPath
 }
 
 // 生成路径
-func (t Transfers) recursionWrite(m *map[string]interface{}) (w bytes.Buffer, isWrapBraces bool) {
+func (t Transfers) recursionWrite(m *map[string]interface{}, parentIsArray bool) (w bytes.Buffer, childrenIsArray bool) {
 	writeComma := false
 	for k, v := range *m {
 		if writeComma {
@@ -139,6 +139,7 @@ func (t Transfers) recursionWrite(m *map[string]interface{}) (w bytes.Buffer, is
 		if !ok {
 			switch k {
 			case "#":
+				childrenIsArray = true
 				w.WriteString(cast.ToString(v))
 			case "":
 				w.WriteString(cast.ToString(v))
@@ -149,16 +150,19 @@ func (t Transfers) recursionWrite(m *map[string]interface{}) (w bytes.Buffer, is
 			continue
 		}
 		var subw bytes.Buffer
-		subw, isWrapBraces = t.recursionWrite(ref) //isWrapBraces 必须使用外出定义,才能返回true到上一个函数
+		currentIsArray := k == "#"
+		subw, childrenIsArray = t.recursionWrite(ref, currentIsArray) //isWrapBraces 必须使用外出定义,才能返回true到上一个函数
 		subwKey := subw.String()
-		if !isWrapBraces { //不会被{}包裹,则使用{} 将子内容包裹，表示对象整体(@group 执行后会自动生成{},此处要排除这种情况)
+		if !childrenIsArray { //不会被{}包裹,则使用{} 将子内容包裹，表示对象整体(@group 执行后会自动生成{},此处要排除这种情况)
 			subwKey = fmt.Sprintf("{%s}", subwKey)
+		} else if parentIsArray {
+			subwKey = fmt.Sprintf("[%s]", subwKey) // 上一级也为数组时，需要包裹到[]中
 		}
-		isWrapBraces = false // 只作用一次
+		childrenIsArray = false // 只作用一次
 		var subStr string
 		switch k {
 		case "#":
-			isWrapBraces = true
+			childrenIsArray = true
 			subStr = fmt.Sprintf("%s|@group", subwKey)
 		case "":
 			subStr = subwKey
@@ -167,7 +171,7 @@ func (t Transfers) recursionWrite(m *map[string]interface{}) (w bytes.Buffer, is
 		}
 		w.WriteString(subStr)
 	}
-	return w, isWrapBraces
+	return w, childrenIsArray
 }
 
 // PathModifyFn 路径修改函数

@@ -64,7 +64,11 @@ func (jItem LineschemaItem) String() (jsonStr string) {
 
 func (jItem *LineschemaItem) InitPath() {
 	if jItem.Path == "" {
-		jItem.Path = strings.ReplaceAll(jItem.Fullname, "[]", ".#")
+		pathArrPlaceHold := ".#"
+		jItem.Path = strings.ReplaceAll(jItem.Fullname, "[]", pathArrPlaceHold)
+		if strings.EqualFold(jItem.Type, "array") { // type 为array是路径增加数组标识
+			jItem.Path = fmt.Sprintf("%s%s", strings.TrimSuffix(jItem.Path, pathArrPlaceHold), pathArrPlaceHold)
+		}
 	}
 }
 
