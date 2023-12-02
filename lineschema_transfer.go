@@ -348,9 +348,6 @@ func str2StructTransfer(rt reflect.Type, prefix string) (transfers Transfers) {
 		filedTK := field.Type.Kind()
 		switch filedTK {
 		case reflect.Slice, reflect.Array, reflect.Struct:
-			if tag != "" {
-				tag = fmt.Sprintf(".%s", tag)
-			}
 			subPrefix := fmt.Sprintf("%s%s", prefix, tag)
 			subTransfer := str2StructTransfer(fieldType, subPrefix)
 			transfers.Replace(subTransfer...)
