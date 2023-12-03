@@ -145,6 +145,7 @@ fullname=services[].servers[].title,required,title=服务名称,comment=服务�
 		gjsonPath := lschema.TransferToFormat().Reverse().String()
 		data := `{"code":0,"message":"","services":[{"id":1,"name":"advertise","title":"广告服务","createdAt":"2023-11-25 22:32:16","updatedAt":"2023-11-25 22:32:16","servers":[{"name":"dev","title":"广告服务开发环境"},{"name":"dev2","title":"广告服务开发环境"}]}],"pagination":{"index":0,"size":10,"total":1}}`
 		fmt.Println(gjsonPath)
+		//gjsonPath = `{services:{name:services.#.name.@tostring,servers:{name:services.#.servers.#.name.@tostring,title:services.#.servers.#.title.@tostring}|@groupPlus:1}|@groupPlus:0}`
 		out := gjson.Get(data, gjsonPath).String()
 		excepted := `{"services":[{"name":"advertise","servers":[{"name":"dev","title":"广告服务开发环境"},{"name":"dev2","title":"广告服务开发环境"}]}]}`
 		assert.Equal(t, excepted, out)
@@ -164,6 +165,37 @@ fullname=services[].serverIds[],required,format=int,title=服务标识,comment=�
 		fmt.Println(out)
 		//excepted := `{"services":[{"name":"advertise","servers":[{"name":"dev","title":"广告服务开发环境"},{"name":"dev2","title":"广告服务开发环境"}]}]}`
 		//assert.Equal(t, excepted, out)
+	})
+
+	//{"servers":[[],[{"name":"dev","title":"开发环境"},{"name":"dev","title":"开发环境"}]]}
+
+	t.Run("complexe 3", func(t *testing.T) {
+		packschema := `version=http://json-schema.org/draft-07/schema#,id=out
+fullname=code,format=int,required,title=业务状态码,default=0,comment=业务状态码,example=0
+fullname=message,required,title=业务提示,default=ok,comment=业务提示,example=ok
+fullname=services[].id,format=int,required,title=主键,comment=主键,example=1
+fullname=services[].name,required,title=项目标识,comment=项目标识,example=advertise
+fullname=services[].title,required,title=名称,comment=名称
+fullname=services[].document,required,title=是,default=产品文档地址,comment=是
+fullname=services[].createdAt,format=datetime,required,title=创建时间,comment=创建时间,example=2023-01-1200:00:00
+fullname=services[].updatedAt,format=datetime,required,title=修改时间,comment=修改时间,example=2023-01-3000:00:00
+fullname=services[].servers[].name,required,title=服务标识,comment=服务标识,example=dev
+fullname=services[].servers[].title,required,title=服务名称,comment=服务名称,example=dev
+fullname=services[].navs[].name,required,title=名称,comment=名称
+fullname=services[].navs[].title,required,title=标题,comment=标题
+fullname=services[].navs[].route,required,title=路由,comment=路由
+fullname=services[].navs[].sort,format=int,required,title=排序,comment=排序
+fullname=pagination.index,format=int,required,title=页索引,0开始,default=0,comment=页索引,0开始,example=0
+fullname=pagination.size,format=int,required,title=每页数量,default=10,comment=每页数量,example=10
+fullname=pagination.total,format=int,required,title=总数,comment=总数,example=60`
+		lschema, err := lineschema.ParseLineschema(packschema)
+		require.NoError(t, err)
+		path := lschema.TransferToFormat().Reverse().String()
+		data := `{"code":0,"message":"","services":[{"id":6,"name":"advertise1","title":"广告服务","document":"","createdAt":"2023-12-02 23:01:04","updatedAt":"2023-12-02 23:01:04","servers":[],"navs":[]},{"id":1,"name":"advertise","title":"广告服务","document":"","createdAt":"2023-11-25 22:32:16","updatedAt":"2023-11-25 22:32:16","servers":[{"name":"dev","title":"开发环境"},{"name":"prod","title":"开发环境"}],"navs":[{"name":"creative","title":"广告创意","route":"/advertise/creativeList","sort":99},{"name":"plan","title":"广告计划","route":"/advertise/planList","sort":98},{"name":"window","title":"橱窗","route":"/advertise/windowList","sort":97},{"name":"crativeList","title":"广告服务","route":"/creativeList","sort":4}]}],"pagination":{"index":0,"size":10,"total":2}}`
+		//data := `{"code":0,"services":[{"id":6,"servers":[]},{"id":1,"servers":[{"name":"dev","title":"开发环境"},{"name":"prod","title":"开发环境"}]}]}`
+		//path = `{code:code.@tostring,services:{navs:[{title:services.#.navs.#.title.@tostring|@flatten,sort:services.#.navs.#.sort.@tostring|@flatten}|@group],id:services.#.id.@tostring,name:services.#.name.@tostring,title:services.#.title.@tostring,document:services.#.document.@tostring}|@group}`
+		newData := gjson.Get(data, path).String()
+		fmt.Println(newData)
 	})
 
 }
@@ -224,4 +256,17 @@ func TestJsonUmarsh(t *testing.T) {
 	b, _ := json.Marshal(u)
 	s := string(b)
 	fmt.Println(s)
+}
+
+func TestTransfer1(t *testing.T) {
+
+	jsonData := `{"code":0,"services":[{"id":6,"servers":[]},{"id":1,"servers":[{"name":"dev","title":"开发环境"},{"name":"prod","title":"开发环境"}]}]}`
+
+	result := gjson.Get(jsonData, "**")
+	paths := result.Array()
+
+	for _, path := range paths {
+		fmt.Println("Path:", path.String())
+	}
+
 }

@@ -64,11 +64,6 @@ func (t Transfers) addTransferModify() (newT Transfers) {
 		if ok {
 			transfer.Src.Path = fmt.Sprintf("%s%s", transfer.Src.Path, transferFunc.ConvertFn) //存在映射函数,则修改,否则保持原样
 		}
-		arrDepth := strings.Count(transfer.Src.Path, "#.")
-		for i := 1; i < arrDepth; i++ { // 多维数组，拍平为一维数组（实际取值为字符串、整数等类型）
-			transfer.Src.Path = fmt.Sprintf("%s|@flatten", transfer.Src.Path)
-		}
-
 		newT = append(newT, transfer)
 	}
 
@@ -118,14 +113,14 @@ func (t Transfers) String() (gjsonPath string) {
 		}
 
 	}
-	w, _ := t.recursionWrite(m, false)
+	w, _ := t.recursionWrite(m, 0)
 	gjsonPath = w.String()
 
 	return gjsonPath
 }
 
 // 生成路径
-func (t Transfers) recursionWrite(m *map[string]interface{}, parentIsArray bool) (w bytes.Buffer, childrenIsArray bool) {
+func (t Transfers) recursionWrite(m *map[string]interface{}, depth int) (w bytes.Buffer, childrenIsArray bool) {
 	writeComma := false
 	for k, v := range *m {
 		if writeComma {
@@ -147,20 +142,20 @@ func (t Transfers) recursionWrite(m *map[string]interface{}, parentIsArray bool)
 			continue
 		}
 		var subw bytes.Buffer
-		currentIsArray := k == "#"
-		subw, childrenIsArray = t.recursionWrite(ref, currentIsArray) //isWrapBraces 必须使用外出定义,才能返回true到上一个函数
+		if k == "#" {
+			depth++
+		}
+		subw, childrenIsArray = t.recursionWrite(ref, depth) //isWrapBraces 必须使用外出定义,才能返回true到上一个函数
 		subwKey := subw.String()
 		if !childrenIsArray { //不会被{}包裹,则使用{} 将子内容包裹，表示对象整体(@group 执行后会自动生成{},此处要排除这种情况)
 			subwKey = fmt.Sprintf("{%s}", subwKey)
-		} else if parentIsArray {
-			subwKey = fmt.Sprintf("[%s]", subwKey) // 上一级也为数组时，需要包裹到[]中
 		}
 		childrenIsArray = false // 只作用一次
 		var subStr string
 		switch k {
 		case "#":
 			childrenIsArray = true
-			subStr = fmt.Sprintf("%s|@group", subwKey)
+			subStr = fmt.Sprintf("%s|@groupPlus:%d", subwKey, depth-1)
 		case "":
 			subStr = subwKey
 		default:
