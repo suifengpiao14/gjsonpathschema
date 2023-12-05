@@ -261,9 +261,11 @@ func (ts TransferFuncs) GetByType(typ string) (t *TransferFunc, ok bool) {
 // DefaultTransferFuncs schema format 转类型
 var DefaultTransferFuncs = TransferFuncs{
 	{Type: "int", ConvertFn: ".@tonum"},
+	{Type: "integer", ConvertFn: ".@tonum"},
 	{Type: "number", ConvertFn: ".@tonum"},
 	{Type: "float", ConvertFn: ".@tonum"},
 	{Type: "bool", ConvertFn: ".@tobool"},
+	{Type: "boolean", ConvertFn: ".@tobool"},
 	{Type: "string", ConvertFn: ".@tostring"},
 }
 
