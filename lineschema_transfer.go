@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 
 	"github.com/spf13/cast"
@@ -71,6 +72,11 @@ func (t Transfers) addTransferModify() (newT Transfers) {
 
 }
 
+type transfersModel struct {
+	keys []string
+	m    *map[string]any
+}
+
 func (t Transfers) String() (gjsonPath string) {
 	newT := t.addTransferModify()
 	m := &map[string]interface{}{}
@@ -113,16 +119,22 @@ func (t Transfers) String() (gjsonPath string) {
 		}
 
 	}
-	w, _ := t.recursionWrite(m, 0)
+	w, _ := t.recursionWrite(m, false, 0)
 	gjsonPath = w.String()
 
 	return gjsonPath
 }
 
 // 生成路径
-func (t Transfers) recursionWrite(m *map[string]interface{}, depth int) (w bytes.Buffer, childrenIsArray bool) {
+func (t Transfers) recursionWrite(m *map[string]interface{}, parentIsArray bool, depth int) (w bytes.Buffer, childrenIsArray bool) {
 	writeComma := false
-	for k, v := range *m {
+	ks := make(sort.StringSlice, 0)
+	for k := range *m {
+		ks = append(ks, k)
+	}
+	sort.Sort(ks) // 保持一致顺序，方便些测试用例，也方便对比
+	for _, k := range ks {
+		v := (*m)[k]
 		if writeComma {
 			w.WriteString(",")
 		}
@@ -142,15 +154,18 @@ func (t Transfers) recursionWrite(m *map[string]interface{}, depth int) (w bytes
 			continue
 		}
 		var subw bytes.Buffer
-		if k == "#" {
+		currentIsArray := k == "#"
+		if currentIsArray {
 			depth++
 		}
-		subw, childrenIsArray = t.recursionWrite(ref, depth) //isWrapBraces 必须使用外出定义,才能返回true到上一个函数
+		subw, subChildrenIsArray := t.recursionWrite(ref, currentIsArray, depth) //isWrapBraces 必须使用外出定义,才能返回true到上一个函数
 		subwKey := subw.String()
-		if !childrenIsArray { //不会被{}包裹,则使用{} 将子内容包裹，表示对象整体(@group 执行后会自动生成{},此处要排除这种情况)
+		if !subChildrenIsArray { //不会被{}包裹,则使用{} 将子内容包裹，表示对象整体(@group 执行后会自动生成{},此处要排除这种情况)
 			subwKey = fmt.Sprintf("{%s}", subwKey)
+			if parentIsArray {
+				subwKey = fmt.Sprintf("%s|@groupPlus:%d", subwKey, depth-1) // 上一级也为数组时，需要包裹到[]中
+			}
 		}
-		childrenIsArray = false // 只作用一次
 		var subStr string
 		switch k {
 		case "#":
