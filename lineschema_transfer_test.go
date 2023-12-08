@@ -11,8 +11,15 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-func TestTransfer(t *testing.T) {
-	lschemaRaw := `
+type user struct {
+	Name   string `json:"name"`
+	UserId int    `json:"userId"`
+}
+
+func TestToGoTypeTransfer(t *testing.T) {
+
+	t.Run("nomal", func(t *testing.T) {
+		lschemaRaw := `
 	version=http://json-schema.org/draft-07/schema#,id=out,direction=out
 	fullname=code,format=int,description=业务状态码,comment=业务状态码,example=0
 	fullname=message,description=业务提示,comment=业务提示,example=ok
@@ -27,25 +34,18 @@ func TestTransfer(t *testing.T) {
 	fullname=pagination.size,format=int,description=每页数量,comment=每页数量,example=10
 	fullname=pagination.total,format=int,description=总数,comment=总数,example=60
 	`
-	lschema, err := lineschema.ParseLineschema(lschemaRaw)
-	require.NoError(t, err)
-	//input := `{"code":"200","message":"ok"}`
-	pathMap := lschema.TransferToFormat().String()
-	expected := `{code:code.@tonum,items:{id:items.#.id.@tonum,title:items.#.title.@tostring,windowIds:items.#.windowIds.#.@tonum,windowIds1:items.#.windowIds1.#.@tonum,windowIds2:items.#.windowIds2.#.@tostring}|@groupPlus:0,message:message.@tostring,pagination:{index:pagination.index.@tonum,size:pagination.size.@tonum,total:pagination.total.@tonum}}`
-	assert.Equal(t, expected, pathMap)
+		lschema, err := lineschema.ParseLineschema(lschemaRaw)
+		require.NoError(t, err)
+		pathMap := lschema.TransferToFormat().String()
+		expected := `{code:code.@tonum,message:message.@tostring,items:{id:items.#.id.@tonum,title:items.#.title.@tostring,windowIds:items.#.windowIds.#.@tonum,windowIds1:items.#.windowIds1.#.@tonum,windowIds2:items.#.windowIds2.#.@tostring}|@groupPlus:0,pagination:{index:pagination.index.@tonum,size:pagination.size.@tonum,total:pagination.total.@tonum}}`
+		assert.Equal(t, expected, pathMap)
 
-	input := `{"code":200,"message":"ok","items":[{"id":1,"title":"test1","windowIds":[1,2,3],"windowIds1":[1,2,3],"windowIds2":[1,2,3]},{"id":2,"title":"test2","windowIds":[4,5,6],"windowIds1":[4,5,6]},"windowIds2":[4,5,6]}],"pagination":{"index":0,"size":10,"total":100}}`
-	out := gjson.Get(input, pathMap).String()
-	fmt.Println(out)
+		input := `{"code":200,"message":"ok","items":[{"id":1,"title":"test1","windowIds":[1,2,3],"windowIds1":[1,2,3],"windowIds2":[1,2,3]},{"id":2,"title":"test2","windowIds":[4,5,6],"windowIds1":[4,5,6]},"windowIds2":[4,5,6]}],"pagination":{"index":0,"size":10,"total":100}}`
+		_ = input
+		// out := gjson.Get(input, pathMap).String()
+		// fmt.Println(out)
+	})
 
-}
-
-type user struct {
-	Name   string `json:"name"`
-	UserId int    `json:"userId"`
-}
-
-func TestToGoTypeTransfer(t *testing.T) {
 	t.Run("struct", func(t *testing.T) {
 		lineSchema := lineschema.ToGoTypeTransfer(new(user)).String()
 		expected := `{name:@this.name.@tostring,userId:@this.userId.@tonum}`
@@ -70,7 +70,6 @@ func TestToGoTypeTransfer(t *testing.T) {
 		lineSchema := lineschema.ToGoTypeTransfer(ids).String()
 		expected := `@this.#.@tostring`
 		assert.Equal(t, expected, lineSchema)
-		fmt.Println(lineSchema)
 	})
 
 	t.Run("int", func(t *testing.T) {
@@ -78,7 +77,6 @@ func TestToGoTypeTransfer(t *testing.T) {
 		lineSchema := lineschema.ToGoTypeTransfer(id).String()
 		expected := `@this.@tonum`
 		assert.Equal(t, expected, lineSchema)
-		fmt.Println(lineSchema)
 	})
 
 	t.Run("complex", func(t *testing.T) {
@@ -98,12 +96,13 @@ fullname=pagination.total,format=int,required,title=总数,comment=总数,exampl
 		lschema, err := lineschema.ParseLineschema(packschema)
 		require.NoError(t, err)
 		gjsonPath := lschema.TransferToFormat().Reverse().String()
-		expected := `{code:code.@tostring,items:{config:items.#.config.@tostring,createdAt:items.#.createdAt.@tostring,id:items.#.id.@tostring,name:items.#.name.@tostring,title:items.#.title.@tostring,updatedAt:items.#.updatedAt.@tostring}|@groupPlus:0,message:message.@tostring,pagination:{index:pagination.index.@tostring,size:pagination.size.@tostring,total:pagination.total.@tostring}}`
+		expected := `{code:code.@tostring,message:message.@tostring,items:{id:items.#.id.@tostring,name:items.#.name.@tostring,title:items.#.title.@tostring,config:items.#.config.@tostring,createdAt:items.#.createdAt.@tostring,updatedAt:items.#.updatedAt.@tostring}|@groupPlus:0,pagination:{index:pagination.index.@tostring,size:pagination.size.@tostring,total:pagination.total.@tostring}}`
 		assert.Equal(t, expected, gjsonPath)
 
 		data := `{"code":0,"message":"","items":[{"id":2,"name":"advertise1","title":"广aa告","config":"{\"navs\":[1]}","createdAt":"","updatedAt":""}],"pagination":{"index":0,"size":10,"total":1}}`
-		out := gjson.Get(data, gjsonPath).String()
-		fmt.Println(out)
+		_ = data
+		// out := gjson.Get(data, gjsonPath).String()
+		// fmt.Println(out)
 	})
 
 	t.Run("complex2", func(t *testing.T) {
@@ -119,12 +118,13 @@ fullname=navs[].sort,format=int,required,title=排序,comment=排序`
 		require.NoError(t, err)
 		gjsonPath := lschema.TransferToFormat().Reverse().String()
 
-		expected := `{code:code.@tostring,message:message.@tostring,navs:{id:navs.#.id.@tostring,name:navs.#.name.@tostring,route:navs.#.route.@tostring,sort:navs.#.sort.@tostring,title:navs.#.title.@tostring}|@groupPlus:0}`
+		expected := `{code:code.@tostring,message:message.@tostring,navs:{id:navs.#.id.@tostring,name:navs.#.name.@tostring,title:navs.#.title.@tostring,route:navs.#.route.@tostring,sort:navs.#.sort.@tostring}|@groupPlus:0}`
 		assert.Equal(t, expected, gjsonPath)
 
 		data := `{"code":0,"message":"","navs":[{"id":1,"name":"creative","title":"广告创意","route":"creativeList","sort":99},{"id":2,"name":"plan","title":"广告计划","route":"planList","sort":98},{"id":3,"name":"window","title":"橱窗","route":"windowList","sort":97}]}`
-		out := gjson.Get(data, gjsonPath).String()
-		fmt.Println(out)
+		_ = data
+		// out := gjson.Get(data, gjsonPath).String()
+		// fmt.Println(out)
 
 	})
 	t.Run("object with no children", func(t *testing.T) {
@@ -139,8 +139,9 @@ fullname=uiSchema,type=object,required,title=uiSchema对象,comment=uiSchema对�
 		assert.Equal(t, expected, gjsonPath)
 
 		data := `{"code":0,"message":"","uiSchema":""}`
-		out := gjson.Get(data, gjsonPath).String()
-		fmt.Println(out)
+		_ = data
+		// out := gjson.Get(data, gjsonPath).String()
+		// fmt.Println(out)
 	})
 	t.Run("deep array", func(t *testing.T) {
 		packschema := `version=http://json-schema.org/draft-07/schema#,id=out
@@ -151,10 +152,10 @@ fullname=services[].servers[].title,required,title=服务名称,comment=服务�
 		lschema, err := lineschema.ParseLineschema(packschema)
 		require.NoError(t, err)
 		gjsonPath := lschema.TransferToFormat().Reverse().String()
-		data := `{"code":0,"message":"","services":[{"id":1,"name":"advertise","title":"广告服务","createdAt":"2023-11-25 22:32:16","updatedAt":"2023-11-25 22:32:16","servers":[{"name":"dev","title":"广告服务开发环境"},{"name":"dev2","title":"广告服务开发环境"}]}],"pagination":{"index":0,"size":10,"total":1}}`
 		expected := `{services:{name:services.#.name.@tostring,servers:{name:services.#.servers.#.name.@tostring,title:services.#.servers.#.title.@tostring}|@groupPlus:1}|@groupPlus:0}`
 		assert.Equal(t, expected, gjsonPath)
 
+		data := `{"code":0,"message":"","services":[{"id":1,"name":"advertise","title":"广告服务","createdAt":"2023-11-25 22:32:16","updatedAt":"2023-11-25 22:32:16","servers":[{"name":"dev","title":"广告服务开发环境"},{"name":"dev2","title":"广告服务开发环境"}]}],"pagination":{"index":0,"size":10,"total":1}}`
 		out := gjson.Get(data, gjsonPath).String()
 		excepted := `{"services":[{"name":"advertise","servers":[{"name":"dev","title":"广告服务开发环境"},{"name":"dev2","title":"广告服务开发环境"}]}]}`
 		assert.Equal(t, excepted, out)
@@ -172,8 +173,9 @@ fullname=services[].serverIds[],required,format=int,title=服务标识,comment=�
 		assert.Equal(t, expected, gjsonPath)
 
 		data := `{"code":0,"message":"","services":[{"name":"advertise","serverIds":[1,2,3]}],"pagination":{"index":0,"size":10,"total":1}}`
-		out := gjson.Get(data, gjsonPath).String()
-		fmt.Println(out)
+		_ = data
+		// out := gjson.Get(data, gjsonPath).String()
+		// fmt.Println(out)
 	})
 
 	t.Run("complexe 3", func(t *testing.T) {
@@ -198,12 +200,13 @@ fullname=pagination.total,format=int,required,title=总数,comment=总数,exampl
 		lschema, err := lineschema.ParseLineschema(packschema)
 		require.NoError(t, err)
 		path := lschema.TransferToFormat().Reverse().String()
-		expected := `{code:code.@tostring,message:message.@tostring,pagination:{index:pagination.index.@tostring,size:pagination.size.@tostring,total:pagination.total.@tostring},services:{createdAt:services.#.createdAt.@tostring,document:services.#.document.@tostring,id:services.#.id.@tostring,name:services.#.name.@tostring,navs:{name:services.#.navs.#.name.@tostring,route:services.#.navs.#.route.@tostring,sort:services.#.navs.#.sort.@tostring,title:services.#.navs.#.title.@tostring}|@groupPlus:1,servers:{name:services.#.servers.#.name.@tostring,title:services.#.servers.#.title.@tostring}|@groupPlus:1,title:services.#.title.@tostring,updatedAt:services.#.updatedAt.@tostring}|@groupPlus:0}`
+		expected := `{code:code.@tostring,message:message.@tostring,services:{id:services.#.id.@tostring,name:services.#.name.@tostring,title:services.#.title.@tostring,document:services.#.document.@tostring,createdAt:services.#.createdAt.@tostring,updatedAt:services.#.updatedAt.@tostring,servers:{name:services.#.servers.#.name.@tostring,title:services.#.servers.#.title.@tostring}|@groupPlus:1,navs:{name:services.#.navs.#.name.@tostring,title:services.#.navs.#.title.@tostring,route:services.#.navs.#.route.@tostring,sort:services.#.navs.#.sort.@tostring}|@groupPlus:1}|@groupPlus:0,pagination:{index:pagination.index.@tostring,size:pagination.size.@tostring,total:pagination.total.@tostring}}`
 		assert.Equal(t, expected, path)
 
 		data := `{"code":0,"message":"","services":[{"id":6,"name":"advertise1","title":"广告服务","document":"","createdAt":"2023-12-02 23:01:04","updatedAt":"2023-12-02 23:01:04","servers":[],"navs":[]},{"id":1,"name":"advertise","title":"广告服务","document":"","createdAt":"2023-11-25 22:32:16","updatedAt":"2023-11-25 22:32:16","servers":[{"name":"dev","title":"开发环境"},{"name":"prod","title":"开发环境"}],"navs":[{"name":"creative","title":"广告创意","route":"/advertise/creativeList","sort":99},{"name":"plan","title":"广告计划","route":"/advertise/planList","sort":98},{"name":"window","title":"橱窗","route":"/advertise/windowList","sort":97},{"name":"crativeList","title":"广告服务","route":"/creativeList","sort":4}]}],"pagination":{"index":0,"size":10,"total":2}}`
-		newData := gjson.Get(data, path).String()
-		fmt.Println(newData)
+		_ = data
+		/* newData := gjson.Get(data, path).String()
+		fmt.Println(newData) */
 	})
 
 	t.Run("complex_array_object", func(t *testing.T) {
@@ -248,14 +251,15 @@ fullname=dataSchemas[].action.method,required,title=请求方法,comment=请求�
 fullname=code,format=int,required,title=业务状态码,default=0,comment=业务状态码,example=0
 fullname=message,required,title=业务提示,default=ok,comment=业务提示,example=ok`
 		data := `{"service":{"name":"advertise","title":"广告服务","document":"http://document.com/ap"},"servers":[{"name":"dev","title":"开发环境","url":"http://ad.micor.cn","proxy":"http://127.0.0.1:8083","env":""},{"name":"test","title":"测试环境","url":"http://ad.micor.cn","proxy":"","env":""},{"name":"prod","title":"正式环境","url":"http://ad.micor.cn","proxy":"","env":""}],"navigates":[{"name":"window","title":"橱窗","route":"/windowList","sort":"97"},{"name":"creative","title":"广告创意","route":"/creativeList","sort":"99"},{"name":"plan","title":"广告计划","route":"/planList","sort":"98"}],"dataSchemas":[{"name":"","serviceName":"advertise","navRote":"/creativeList","parentNavRoute":"","scene":"list","description":"创意列表","request":[{"type":"string","title":"广告计划Id","fullname":"planId","name":"planId","primaryKey":"false","required":"true","scene":""},{"type":"string","title":"名称","fullname":"name","name":"name","primaryKey":"false","required":"true","scene":""},{"type":"string","title":"页索引","fullname":"index","name":"index","primaryKey":"false","required":"true","scene":"page"},{"type":"string","title":"每页数量","fullname":"size","name":"size","primaryKey":"false","required":"true","scene":"page"}],"response":[{"type":"string","title":"业务状态码","fullname":"code","name":"code","primaryKey":"false","required":"false","scene":"businessStatus"},{"type":"string","title":"业务提示","fullname":"message","name":"message","primaryKey":"false","required":"false","scene":"businessStatus"},{"type":"string","title":"主键","fullname":"items[].id","name":"id","primaryKey":"false","required":"false","scene":"identify"},{"type":"string","title":"广告计划Id","fullname":"items[].planId","name":"planId","primaryKey":"false","required":"false","scene":""},{"type":"string","title":"名称","fullname":"items[].name","name":"name","primaryKey":"false","required":"false","scene":""},{"type":"string","title":"广告内容","fullname":"items[].content","name":"content","primaryKey":"false","required":"false","scene":""},{"type":"string","title":"创建时间","fullname":"items[].createdAt","name":"createdAt","primaryKey":"false","required":"false","scene":""},{"type":"string","title":"修改时间","fullname":"items[].updatedAt","name":"updatedAt","primaryKey":"false","required":"false","scene":""},{"type":"string","title":"页索引","fullname":"pagination.index","name":"index","primaryKey":"false","required":"false","scene":"page"},{"type":"string","title":"每页数量","fullname":"pagination.size","name":"size","primaryKey":"false","required":"false","scene":"page"},{"type":"string","title":"总数","fullname":"pagination.total","name":"total","primaryKey":"false","required":"false","scene":"page"}],"action":{"url":"/admin/v1/creative/list","method":"POST"}},{"name":"新增","serviceName":"advertise","navRote":"","parentNavRoute":"/creativeList","scene":"crate","description":"新增创意","request":[{"type":"string","title":"广告计划Id","fullname":"planId","name":"planId","primaryKey":"false","required":"true","scene":""},{"type":"string","title":"名称","fullname":"name","name":"name","primaryKey":"false","required":"true","scene":""},{"type":"string","title":"广告内容","fullname":"content","name":"content","primaryKey":"false","required":"true","scene":""}],"response":[{"type":"string","title":"业务状态码","fullname":"code","name":"code","primaryKey":"false","required":"false","scene":"businessStatus"},{"type":"string","title":"业务提示","fullname":"message","name":"message","primaryKey":"false","required":"false","scene":"businessStatus"}],"action":{"url":"/admin/v1/creative/add","method":"POST"}},{"name":"修改","serviceName":"advertise","navRote":"","parentNavRoute":"/creativeList","scene":"edit","description":"更新创意","request":[{"type":"string","title":"主键","fullname":"id","name":"id","primaryKey":"false","required":"true","scene":"identify"},{"type":"string","title":"名称","fullname":"name","name":"name","primaryKey":"false","required":"true","scene":""},{"type":"string","title":"广告内容","fullname":"content","name":"content","primaryKey":"false","required":"true","scene":""}],"response":[{"type":"string","title":"业务状态码","fullname":"code","name":"code","primaryKey":"false","required":"false","scene":"businessStatus"},{"type":"string","title":"业务提示","fullname":"message","name":"message","primaryKey":"false","required":"false","scene":"businessStatus"}],"action":{"url":"/admin/v1/creative/update","method":"POST"}},{"name":"删除","serviceName":"advertise","navRote":"","parentNavRoute":"/creativeList","scene":"delete","description":"删除创意","request":[{"type":"string","title":"主键","fullname":"id","name":"id","primaryKey":"false","required":"true","scene":""},{"type":"string","title":"广告计划Id","fullname":"planId","name":"planId","primaryKey":"false","required":"true","scene":""}],"response":[{"type":"string","title":"业务状态码","fullname":"code","name":"code","primaryKey":"false","required":"false","scene":"businessStatus"},{"type":"string","title":"业务提示","fullname":"message","name":"message","primaryKey":"false","required":"false","scene":"businessStatus"}],"action":{"url":"/admin/v1/creative/del","method":"POST"}}],"code":"0","message":"ok"}`
-
+		_ = data
 		lschema, err := lineschema.ParseLineschema(unpackSchema)
 		require.NoError(t, err)
 		path := lschema.TransferToFormat().Reverse().String()
-		exceptedPath := `{code:code.@tostring,dataSchemas:{action:{method:dataSchemas.#.action.method.@tostring,url:dataSchemas.#.action.url.@tostring}|@groupPlus:0,description:dataSchemas.#.description.@tostring,name:dataSchemas.#.name.@tostring,navRote:dataSchemas.#.navRote.@tostring,parentNavRoute:dataSchemas.#.parentNavRoute.@tostring,request:{fullname:dataSchemas.#.request.#.fullname.@tostring,name:dataSchemas.#.request.#.name.@tostring,primaryKey:dataSchemas.#.request.#.primaryKey.@tostring,required:dataSchemas.#.request.#.required.@tostring,scene:dataSchemas.#.request.#.scene.@tostring,title:dataSchemas.#.request.#.title.@tostring,type:dataSchemas.#.request.#.type.@tostring}|@groupPlus:1,response:{fullname:dataSchemas.#.response.#.fullname.@tostring,name:dataSchemas.#.response.#.name.@tostring,primaryKey:dataSchemas.#.response.#.primaryKey.@tostring,required:dataSchemas.#.response.#.required.@tostring,scene:dataSchemas.#.response.#.scene.@tostring,title:dataSchemas.#.response.#.title.@tostring,type:dataSchemas.#.response.#.type.@tostring}|@groupPlus:1,scene:dataSchemas.#.scene.@tostring,serviceName:dataSchemas.#.serviceName.@tostring}|@groupPlus:0,message:message.@tostring,navigates:{name:navigates.#.name.@tostring,route:navigates.#.route.@tostring,sort:navigates.#.sort.@tostring,title:navigates.#.title.@tostring}|@groupPlus:0,servers:{env:servers.#.env.@tostring,name:servers.#.name.@tostring,proxy:servers.#.proxy.@tostring,title:servers.#.title.@tostring,url:servers.#.url.@tostring}|@groupPlus:0,service:{document:service.document.@tostring,name:service.name.@tostring,title:service.title.@tostring}}`
+		exceptedPath := `{service:{name:service.name.@tostring,title:service.title.@tostring,document:service.document.@tostring},servers:{name:servers.#.name.@tostring,title:servers.#.title.@tostring,url:servers.#.url.@tostring,proxy:servers.#.proxy.@tostring,env:servers.#.env.@tostring}|@groupPlus:0,navigates:{name:navigates.#.name.@tostring,title:navigates.#.title.@tostring,route:navigates.#.route.@tostring,sort:navigates.#.sort.@tostring}|@groupPlus:0,dataSchemas:{name:dataSchemas.#.name.@tostring,serviceName:dataSchemas.#.serviceName.@tostring,navRote:dataSchemas.#.navRote.@tostring,parentNavRoute:dataSchemas.#.parentNavRoute.@tostring,scene:dataSchemas.#.scene.@tostring,description:dataSchemas.#.description.@tostring,request:{type:dataSchemas.#.request.#.type.@tostring,title:dataSchemas.#.request.#.title.@tostring,fullname:dataSchemas.#.request.#.fullname.@tostring,name:dataSchemas.#.request.#.name.@tostring,primaryKey:dataSchemas.#.request.#.primaryKey.@tostring,required:dataSchemas.#.request.#.required.@tostring,scene:dataSchemas.#.request.#.scene.@tostring}|@groupPlus:1,response:{type:dataSchemas.#.response.#.type.@tostring,title:dataSchemas.#.response.#.title.@tostring,fullname:dataSchemas.#.response.#.fullname.@tostring,name:dataSchemas.#.response.#.name.@tostring,primaryKey:dataSchemas.#.response.#.primaryKey.@tostring,required:dataSchemas.#.response.#.required.@tostring,scene:dataSchemas.#.response.#.scene.@tostring}|@groupPlus:1,action:{url:dataSchemas.#.action.url.@tostring,method:dataSchemas.#.action.method.@tostring}|@groupPlus:0}|@groupPlus:0,code:code.@tostring,message:message.@tostring}`
 		assert.Equal(t, exceptedPath, path)
-		newData := gjson.Get(data, path)
-		fmt.Println(newData)
+		/* newData := gjson.Get(data, path).String()
+		fmt.Println(newData) */
+
 	})
 
 }

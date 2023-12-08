@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"reflect"
-	"sort"
 	"strings"
 
 	"github.com/spf13/cast"
@@ -73,13 +72,28 @@ func (t Transfers) addTransferModify() (newT Transfers) {
 }
 
 type transfersModel struct {
-	keys []string
-	m    *map[string]any
+	keys transfersKeys
+	m    map[string]any
+}
+
+type transfersKeys []string
+
+func (tks *transfersKeys) AppendIgnore(key string) { // 存在忽略
+	for _, existsKey := range *tks {
+		if existsKey == key {
+			return
+		}
+
+	}
+	*tks = append(*tks, key)
 }
 
 func (t Transfers) String() (gjsonPath string) {
 	newT := t.addTransferModify()
-	m := &map[string]interface{}{}
+	m := &transfersModel{
+		keys: make([]string, 0),
+		m:    make(map[string]any),
+	}
 	if len(newT) == 0 {
 		return ""
 	}
@@ -99,23 +113,32 @@ func (t Transfers) String() (gjsonPath string) {
 		ref := m
 		for i, key := range arr {
 			if l == i+1 { // 处理最后一个
-				if (*ref)[key] == nil {
-					(*ref)[key] = item.Src.Path // 第一次默认设置为字符串类型, 如果已经存在,不再修改成字符串(//当类型为 object,array 的在后面,之前有子元素时,忽略)
+				if (*ref).m[key] == nil {
+					(*ref).keys.AppendIgnore(key)
+					(*ref).m[key] = item.Src.Path // 第一次默认设置为字符串类型, 如果已经存在,不再修改成字符串(//当类型为 object,array 的在后面,之前有子元素时,忽略)
 				}
 
 				continue
 			}
 			var ok bool
-			if _, ok = (*ref)[key]; !ok {
-				(*ref)[key] = &map[string]interface{}{}
+			if _, ok = (*ref).m[key]; !ok {
+				(*ref).keys.AppendIgnore(key)
+				(*ref).m[key] = &transfersModel{
+					keys: make([]string, 0),
+					m:    make(map[string]any),
+				}
 			}
 			if ok {
-				_, ok = (*ref)[key].(*map[string]interface{}) //检验类型( //当类型为 object,array 的在前面先设置时 (fullname=items, type=array )其类型不为map)
+				_, ok = (*ref).m[key].(*transfersModel) //检验类型( //当类型为 object,array 的在前面先设置时 (fullname=items, type=array )其类型不为map)
 			}
 			if !ok {
-				(*ref)[key] = &map[string]interface{}{}
+				(*ref).keys.AppendIgnore(key)
+				(*ref).m[key] = &transfersModel{
+					keys: make([]string, 0),
+					m:    make(map[string]any),
+				}
 			}
-			ref = (*ref)[key].(*map[string]interface{}) // 本次递进一定成功
+			ref = (*ref).m[key].(*transfersModel) // 本次递进一定成功
 		}
 
 	}
@@ -126,20 +149,15 @@ func (t Transfers) String() (gjsonPath string) {
 }
 
 // 生成路径
-func (t Transfers) recursionWrite(m *map[string]interface{}, parentIsArray bool, depth int) (w bytes.Buffer, childrenIsArray bool) {
+func (t Transfers) recursionWrite(m *transfersModel, parentIsArray bool, depth int) (w bytes.Buffer, childrenIsArray bool) {
 	writeComma := false
-	ks := make(sort.StringSlice, 0)
-	for k := range *m {
-		ks = append(ks, k)
-	}
-	sort.Sort(ks) // 保持一致顺序，方便些测试用例，也方便对比
-	for _, k := range ks {
-		v := (*m)[k]
+	for _, k := range m.keys {
+		v := (*m).m[k]
 		if writeComma {
 			w.WriteString(",")
 		}
 		writeComma = true
-		ref, ok := v.(*map[string]interface{})
+		ref, ok := v.(*transfersModel)
 		if !ok {
 			switch k {
 			case "#":
