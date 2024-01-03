@@ -56,11 +56,16 @@ func parseOneJsonKey2Line(rv reflect.Value, fullname string) (items LineschemaIt
 		}
 		items = append(items, item)
 	case reflect.Float32, reflect.Float64:
+		example := cast.ToString(rv.Float())
+		format := "float"
+		if !strings.Contains(example, ".") {
+			format = "int"
+		}
 		item := &LineschemaItem{
 			Type:     "string",
-			Format:   "float",
+			Format:   format,
 			Fullname: fullname,
-			Example:  cast.ToString(rv.Float()),
+			Example:  example,
 		}
 		items = append(items, item)
 	case reflect.String:
