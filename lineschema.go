@@ -33,6 +33,23 @@ func (ls *LineschemaItems) Add(lineschemaItems ...*LineschemaItem) {
 		*ls = append(*ls, l)
 	}
 }
+func (ls LineschemaItems) Unique() (uniqItems LineschemaItems) {
+	uniqItems = make(LineschemaItems, 0)
+	for _, item := range ls {
+		exists := false
+		for _, uinq := range uniqItems {
+			if item.Fullname == uinq.Fullname {
+				exists = true
+				break
+			}
+		}
+		if exists {
+			continue
+		}
+		uniqItems = append(uniqItems, item)
+	}
+	return uniqItems
+}
 
 var jsonschemalineItemOrder = []string{
 	"fullname", "src", "dst", "type", "format", "pattern", "enum", "required", "allowEmptyValue", "title", "description", "default", "comment", "example", "deprecated", "const",
@@ -179,4 +196,17 @@ func (lineschema Lineschema) TransferToFormat() (transfers Transfers) {
 		transfers.Replace(transfer)
 	}
 	return transfers
+}
+
+func (lineschema Lineschema) JsonExample() (jsonStr string, err error) {
+	jsonSchema, err := lineschema.JsonSchema()
+	if err != nil {
+		return "", err
+	}
+	b, err := GenerateDefaultJSON(jsonSchema)
+	if err != nil {
+		return "", err
+	}
+	jsonStr = string(b)
+	return jsonStr, nil
 }

@@ -26,11 +26,12 @@ func Json2lineSchema(jsonStr string) (out *Lineschema, err error) {
 		return nil, err
 	}
 	rv := reflect.Indirect(reflect.ValueOf(input))
-	out.Items = parseOneJsonKey2Line(rv, "")
+	items := parseOneJsonKey2Line(rv, "")
+	out.Items = items.Unique()
 	return out, nil
 }
 
-func parseOneJsonKey2Line(rv reflect.Value, fullname string) (items []*LineschemaItem) {
+func parseOneJsonKey2Line(rv reflect.Value, fullname string) (items LineschemaItems) {
 	items = make([]*LineschemaItem, 0)
 	if rv.IsZero() {
 		return items
@@ -38,12 +39,28 @@ func parseOneJsonKey2Line(rv reflect.Value, fullname string) (items []*Lineschem
 	rv = reflect.Indirect(rv)
 	kind := rv.Kind()
 	switch kind {
-	case reflect.Int, reflect.Float64, reflect.Int64:
+	case reflect.Bool:
 		item := &LineschemaItem{
 			Type:     "string",
-			Format:   "number",
+			Format:   "boolean",
 			Fullname: fullname,
-			Example:  rv.String(),
+			Example:  cast.ToString(rv.Bool()),
+		}
+		items = append(items, item)
+	case reflect.Int, reflect.Int64:
+		item := &LineschemaItem{
+			Type:     "string",
+			Format:   "int",
+			Fullname: fullname,
+			Example:  cast.ToString(rv.Int()),
+		}
+		items = append(items, item)
+	case reflect.Float32, reflect.Float64:
+		item := &LineschemaItem{
+			Type:     "string",
+			Format:   "float",
+			Fullname: fullname,
+			Example:  cast.ToString(rv.Float()),
 		}
 		items = append(items, item)
 	case reflect.String:
