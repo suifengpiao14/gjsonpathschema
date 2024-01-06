@@ -34,7 +34,7 @@ func (ls *LineschemaItems) Add(lineschemaItems ...*LineschemaItem) {
 	}
 }
 
-//Remove 移除部分属性
+// Remove 移除部分属性
 func (ls *LineschemaItems) Remove(moveItems ...*LineschemaItem) {
 	tmp := make(LineschemaItems, 0)
 	for _, l := range *ls {
@@ -70,15 +70,13 @@ func (ls LineschemaItems) Unique() (uniqItems LineschemaItems) {
 }
 
 // 检测给定行是否为自定义结构体名称
-func (ls *LineschemaItems) IsAsType(lineschemaItem LineschemaItem) (isTypeItem bool) {
-	for _, l := range *ls {
-		typ := l.Type
-		typArr := fmt.Sprintf("[]%s", typ)
-		if typ == lineschemaItem.Fullname || typArr == lineschemaItem.Fullname {
-			return true
-		}
+func CustomDefineStruct(typeName string) (structName string, isCustomDefineStruct bool) {
+	typeName = strings.TrimPrefix(typeName, "[]")
+	isCustomDefineStruct = !strings.Contains(Type_base_set, fmt.Sprintf(",%s,", typeName))
+	if isCustomDefineStruct {
+		return typeName, true
 	}
-	return false
+	return "", false
 }
 
 // 获取父类名称下的子类、属性
@@ -93,7 +91,17 @@ func (ls *LineschemaItems) GetByParent(parentName string) (children LineschemaIt
 	return children
 }
 
-//GetByType 找出指定类型名的项
+// GetByType 找出指定类型名的项
+func (ls *LineschemaItems) GetByFullName(fullname string) (subItem *LineschemaItem, ok bool) {
+	for _, l := range *ls {
+		if l.Fullname == fullname {
+			return l, true
+		}
+	}
+	return nil, false
+}
+
+// GetByType 找出指定类型名的项
 func (ls *LineschemaItems) GetByType(typeNames ...string) (subItems LineschemaItems) {
 	subItems = make(LineschemaItems, 0)
 	for _, l := range *ls {
@@ -106,41 +114,94 @@ func (ls *LineschemaItems) GetByType(typeNames ...string) (subItems LineschemaIt
 	return subItems
 }
 
-//Clone 修改属性值时，先clone 避免引起副作用
-func (ls *LineschemaItems) Clone() (clone LineschemaItems) {
-	clone = make(LineschemaItems, 0)
+// Clone 修改属性值时，先clone 避免引起副作用
+func (ls *LineschemaItems) Clone() (items *LineschemaItems) {
+	clone := make(LineschemaItems, 0)
 
 	for _, l := range *ls {
 		tmp := *l
 		clone = append(clone, &tmp)
 	}
-	return clone
+	return &clone
 }
 
-//flatten 将非简单类型项展开
-func (ls *LineschemaItems) flatten() {
+const (
+	//字段基本类型,其他类型会被认定为自定义结构体
+	Type_base_set = `,string,int,float,boolean,numeber,object,array,[]string,[]int,[]float,[]boolean,[]numeber,[]object,[]array,`
+)
 
-	flattenItems := make(LineschemaItems, 0)
-	for _, item := range *ls {
-		if ls.IsAsType(*item) {
-			flattenItems = append(flattenItems, item)
+func (ls *LineschemaItems) flattenArray() {
+	for {
+		arrayStructName := ""
+		for _, item := range *ls {
+			if !strings.HasPrefix(item.Type, "[]") {
+				continue
+			}
+
+			_, ok := CustomDefineStruct(item.Type)
+			if !ok {
+				continue
+			}
+			// 替换数组类型
+			arrayStructName = item.Type
+			for _, item2 := range *ls {
+				if item2.Type == item.Fullname {
+					item2.Fullname = fmt.Sprintf("%s[]", item2.Fullname)
+					item2.Path = fmt.Sprintf("%s.#", item2.Path)
+					item2.Type = strings.TrimPrefix(arrayStructName, "[]")
+				}
+			}
+			ls.Remove(item) // 移除数组定义
+			break           // 修改ls后从新循环
 		}
-	}
-
-	for _, flattenItem := range flattenItems {
-		children := ls.GetByParent(flattenItem.Fullname)
-		typeNames := []string{flattenItem.Fullname, fmt.Sprintf("[]%s", flattenItem.Fullname)}
-		refItems := ls.GetByType(typeNames...)
-		for _, refItem := range refItems {
-			clone := children.Clone()
-			clone.ChangeParent(refItem.Fullname, "")
-			ls.Add(clone...)
-			ls.Remove(refItem)
+		if arrayStructName == "" {
+			break
 		}
 	}
 }
 
-//ChangeParent 修改Fullnamne，达到移动节点效果
+// flattenObject 将非简单类型项展开
+func (ls *LineschemaItems) flattenObject() {
+
+	for {
+		ok := false
+		customDefineStruct := ""
+		for _, item := range *ls {
+			customDefineStruct, ok = CustomDefineStruct(item.Type)
+			if !ok {
+				continue
+			}
+			//替换对象
+			children := ls.GetByParent(customDefineStruct)
+			//检测子类是否有递归引用情况,存在则panic报错
+			for _, item := range children { // 递归平铺子类
+				subStructName, ok := CustomDefineStruct(item.Type)
+				if !ok {
+					continue
+				}
+				if subStructName == customDefineStruct {
+					err := errors.Errorf("type name(%s) circular reference. children fullname:%s", customDefineStruct, item.Fullname)
+					panic(err)
+				}
+			}
+
+			refItems := ls.GetByType(item.Type)
+			for _, refItem := range refItems {
+				clone := children.Clone()
+				clone.ChangeParent(refItem.Fullname, fmt.Sprintf("%s.", item.Type))
+				ls.Add((*clone)...)
+				ls.Remove(refItem)
+			}
+			ls.Remove(children...)
+
+		}
+		if customDefineStruct == "" { // 经过循环搜索后不再有自定义类型,则退出
+			break
+		}
+	}
+}
+
+// ChangeParent 修改Fullnamne，达到移动节点效果
 func (ls *LineschemaItems) ChangeParent(newParent string, oldParent string) {
 	for _, l := range *ls {
 		fullname := l.Fullname
@@ -148,8 +209,9 @@ func (ls *LineschemaItems) ChangeParent(newParent string, oldParent string) {
 			fullname = strings.TrimPrefix(fullname, oldParent)
 		}
 		fullname = fmt.Sprintf("%s.%s", newParent, fullname)
-		fullname = strings.TrimLeft(".", fullname)
+		fullname = strings.TrimLeft(fullname, ".")
 		l.Fullname = fullname
+		l.Path = strings.ReplaceAll(fullname, "[]", ".#")
 	}
 }
 
@@ -185,14 +247,16 @@ func (l *Lineschema) UniqKey() (uniqKey string) {
 	return uniqKey
 }
 
-//ResolveRef  Lineschema 新增支持自定义类型，类似引用，调用此函数后，通过重复填充消除引用，在路径转换时必须先展开到基本类型
+// ResolveRef  Lineschema 新增支持自定义类型，类似引用，调用此函数后，通过重复填充消除引用，在路径转换时必须先展开到基本类型
 func (l Lineschema) ResolveRef() (flatten Lineschema) {
 	flatten = Lineschema{
 		Meta:  l.Meta,
 		Items: make(LineschemaItems, 0),
 	}
-	copy(l.Items, flatten.Items)
-	flatten.Items.flatten()
+	items := l.Items.Clone()
+	items.flattenArray()  // 解决数组结构体定义
+	items.flattenObject() // 解决对象结构体定义
+	flatten.Items = *items
 	return flatten
 }
 
