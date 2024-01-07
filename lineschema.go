@@ -310,7 +310,8 @@ func (l *Lineschema) JsonSchema() (jsonschemaByte []byte, err error) {
 	kvs := kvstruct.KVS{
 		{Key: "$schema", Value: "http://json-schema.org/draft-07/schema#"},
 	}
-	for _, item := range l.Items {
+	lineschema := l.ResolveRef()
+	for _, item := range lineschema.Items {
 		subKvs, err := item.ToJsonSchemaKVS()
 		if err != nil {
 			return nil, err
@@ -349,8 +350,9 @@ func (l *Lineschema) JsonSchema() (jsonschemaByte []byte, err error) {
 
 // TransferToFormat 获取转换对象 源为type，目标为format
 func (lineschema Lineschema) TransferToFormat() (transfers Transfers) {
+	resolveRef := lineschema.ResolveRef()
 	transfers = make(Transfers, 0)
-	for _, item := range lineschema.Items {
+	for _, item := range resolveRef.Items {
 
 		src := TransferUnit{
 			Path: item.Path,
