@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cast"
 	"github.com/suifengpiao14/funcs"
+	"github.com/tidwall/gjson"
 )
 
 type TransferUnit struct {
@@ -204,7 +205,13 @@ type PathModifyFn func(path string) (newPath string)
 
 // PathModifyFnCameCase 将路径改成小驼峰格式
 func PathModifyFnCameCase(path string) (newPath string) {
-	newPath = funcs.CamelCase(path, false, false)
+	arr := strings.Split(path, ".")
+	l := len(arr)
+	newArr := make([]string, l)
+	for i := 0; i < l; i++ {
+		newArr[i] = funcs.CamelCase(arr[i], false, false)
+	}
+	newPath = strings.Join(newArr, ".")
 	return
 }
 
@@ -223,6 +230,11 @@ func PathModifyFnSnakeCase(path string) (newPath string) {
 // PathModifyFnLower 将路径转为小写格式
 func PathModifyFnLower(path string) (newPath string) {
 	return strings.ToLower(path)
+}
+
+// PathModifyFnString 路径后面增加@tostring
+func PathModifyFnString(path string) (newPath string) {
+	return fmt.Sprintf("%s@tostring", path)
 }
 
 // PathModifyFnTrimPrefixFn 生成剔除前缀修改函数
@@ -401,4 +413,31 @@ func str2StructTransfer(rt reflect.Type, prefix string) (transfers Transfers) {
 	}
 
 	return transfers
+}
+
+//TransferJson 修改json数据
+func TransferJson(s string, modifyTransferFn func(transfer Transfers) (newTransfer Transfers)) (newS string, err error) {
+	lineschema, err := Json2lineSchema(s)
+	if err != nil {
+		return "", err
+	}
+	transfers := make(Transfers, 0)
+	for _, item := range lineschema.Items {
+		transfer := Transfer{
+			Src: TransferUnit{
+				Path: item.Path,
+			},
+			Dst: TransferUnit{
+				Path: item.Path,
+			},
+		}
+		transfers = append(transfers, transfer)
+	}
+	if modifyTransferFn != nil {
+		transfers = modifyTransferFn(transfers)
+	}
+	gjsonPath := transfers.String()
+	fmt.Println(gjsonPath)
+	newS = gjson.Get(s, gjsonPath).String()
+	return newS, nil
 }

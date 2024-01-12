@@ -69,6 +69,7 @@ func (jItem *LineschemaItem) InitPath() {
 		if strings.EqualFold(jItem.Type, "array") { // type 为array是路径增加数组标识
 			jItem.Path = fmt.Sprintf("%s%s", strings.TrimSuffix(jItem.Path, pathArrPlaceHold), pathArrPlaceHold)
 		}
+		jItem.Path = strings.Trim(jItem.Path, ".") // 开头为.#-数组,需要改成 #开头
 	}
 }
 

@@ -33,9 +33,6 @@ func Json2lineSchema(jsonStr string) (out *Lineschema, err error) {
 
 func parseOneJsonKey2Line(rv reflect.Value, fullname string) (items LineschemaItems) {
 	items = make([]*LineschemaItem, 0)
-	if rv.IsZero() {
-		return items
-	}
 	rv = reflect.Indirect(rv)
 	kind := rv.Kind()
 	switch kind {
@@ -97,6 +94,9 @@ func parseOneJsonKey2Line(rv reflect.Value, fullname string) (items LineschemaIt
 	case reflect.Interface, reflect.Ptr:
 		rv = rv.Elem()
 		return parseOneJsonKey2Line(rv, fullname)
+	}
+	for i := range items {
+		items[i].InitPath()
 	}
 	return items
 }
