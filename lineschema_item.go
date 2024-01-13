@@ -10,7 +10,7 @@ import (
 )
 
 type LineschemaItem struct {
-	Path        string `json:"path"`
+	Path        string `json:"path"` // 此处的path 结尾的.# 代表数组元素,非gjson 的取数组长度,在转换时要注意转换
 	Type        string `json:"type"`
 	Format      string `json:"format,omitempty"`
 	Description string `json:"description,omitempty"`
@@ -63,14 +63,25 @@ func (jItem LineschemaItem) String() (jsonStr string) {
 }
 
 func (jItem *LineschemaItem) InitPath() {
-	if jItem.Path == "" {
-		pathArrPlaceHold := ".#"
-		jItem.Path = strings.ReplaceAll(jItem.Fullname, "[]", pathArrPlaceHold)
-		if strings.EqualFold(jItem.Type, "array") { // type 为array是路径增加数组标识
-			jItem.Path = fmt.Sprintf("%s%s", strings.TrimSuffix(jItem.Path, pathArrPlaceHold), pathArrPlaceHold)
-		}
-		jItem.Path = strings.Trim(jItem.Path, ".") // 开头为.#-数组,需要改成 #开头
+	if jItem.Path != "" {
+		return
 	}
+
+	pathArrPlaceHold := ".#"
+	jItem.Path = strings.ReplaceAll(jItem.Fullname, "[]", pathArrPlaceHold)
+
+	//因为路径最后为# 则表示取数组长度,显然不能表达出数组的意思,2024-01-13 注释的场景: [{"Enums":[]}] 转 jsonschema后,修改路径,再转json 结果`[{"Enums":0}]`,理论上看之前应该有bug,或者无效
+	/*
+		if strings.EqualFold(jItem.Type, "array") { // type 为array是路径增加数组标识
+			jItem.Path = fmt.Sprintf("%s%s", strings.TrimSuffix(jItem.Path, pathArrPlaceHold), pathArrPlaceHold)//确保结尾有且只有一个.#
+		}
+	*/
+
+	jItem.Path = strings.Trim(jItem.Path, ".") // 开头为.#-数组,需要改成 #开头
+	for strings.HasSuffix(jItem.Path, pathArrPlaceHold) {
+		jItem.Path = strings.TrimSuffix(jItem.Path, pathArrPlaceHold) // 删除结尾的.#,因为其代表取数组长度 2024-01-13 增加, 当fullname 最后带有[]时,生效
+	}
+
 }
 
 func (jItem LineschemaItem) ToKVS(namespance string) (kvs kvstruct.KVS) {

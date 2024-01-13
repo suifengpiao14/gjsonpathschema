@@ -74,6 +74,15 @@ func parseOneJsonKey2Line(rv reflect.Value, fullname string) (items LineschemaIt
 		items = append(items, item)
 	case reflect.Array, reflect.Slice:
 		l := rv.Len()
+		if l == 0 {
+			item := &LineschemaItem{
+				Type:     "array",
+				Fullname: fmt.Sprintf("%s[]", fullname),
+				Example:  "[]",
+			}
+			items = append(items, item)
+			break
+		}
 		for i := 0; i < l; i++ {
 			v := rv.Index(i)
 			subFullname := fmt.Sprintf("%s[]", fullname)
@@ -94,6 +103,13 @@ func parseOneJsonKey2Line(rv reflect.Value, fullname string) (items LineschemaIt
 	case reflect.Interface, reflect.Ptr:
 		rv = rv.Elem()
 		return parseOneJsonKey2Line(rv, fullname)
+	default: // 默认返回null,避免字段丢失
+		item := &LineschemaItem{
+			Type:     "null",
+			Fullname: fullname,
+			Example:  "null",
+		}
+		items = append(items, item)
 	}
 	for i := range items {
 		items[i].InitPath()
@@ -101,7 +117,7 @@ func parseOneJsonKey2Line(rv reflect.Value, fullname string) (items LineschemaIt
 	return items
 }
 
-//Jsonschema2Lineschema json schema 转 line schema
+// Jsonschema2Lineschema json schema 转 line schema
 func Jsonschema2Lineschema(jsonschema string) (lineschema *Lineschema, err error) {
 	var schema map[string]interface{}
 	err = json.Unmarshal([]byte(jsonschema), &schema)

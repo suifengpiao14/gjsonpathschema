@@ -203,20 +203,24 @@ func (t Transfers) recursionWrite(m *transfersModel, parentIsArray bool, depth i
 // PathModifyFn 路径修改函数
 type PathModifyFn func(path string) (newPath string)
 
-// PathModifyFnCameCase 将路径改成小驼峰格式
-func PathModifyFnCameCase(path string) (newPath string) {
+// PathModifyFnSmallCameCase 将路径改成小驼峰格式
+func PathModifyFnSmallCameCase(path string) (newPath string) {
 	arr := strings.Split(path, ".")
 	l := len(arr)
 	newArr := make([]string, l)
 	for i := 0; i < l; i++ {
-		newArr[i] = funcs.CamelCase(arr[i], false, false)
+		if arr[i] == "#" {
+			newArr[i] = arr[i]
+		} else {
+			newArr[i] = funcs.CamelCase(arr[i], false, false)
+		}
 	}
 	newPath = strings.Join(newArr, ".")
 	return
 }
 
 // PathModifyFnSnakeCase 将路径转为下划线格式
-func PathModifyFnSnakeCase(path string) (newPath string) {
+func PathModifyFnSnakeCase(path string, typ string) (newPath string) {
 	arr := strings.Split(path, ".")
 	l := len(arr)
 	newArr := make([]string, l)
@@ -228,13 +232,13 @@ func PathModifyFnSnakeCase(path string) (newPath string) {
 }
 
 // PathModifyFnLower 将路径转为小写格式
-func PathModifyFnLower(path string) (newPath string) {
+func PathModifyFnLower(path string, typ string) (newPath string) {
 	return strings.ToLower(path)
 }
 
 // PathModifyFnString 路径后面增加@tostring
 func PathModifyFnString(path string) (newPath string) {
-	return fmt.Sprintf("%s@tostring", path)
+	return fmt.Sprintf("%s.@tostring", path)
 }
 
 // PathModifyFnTrimPrefixFn 生成剔除前缀修改函数
@@ -415,7 +419,7 @@ func str2StructTransfer(rt reflect.Type, prefix string) (transfers Transfers) {
 	return transfers
 }
 
-//TransferJson 修改json数据
+// TransferJson 修改json数据
 func TransferJson(s string, modifyTransferFn func(transfer Transfers) (newTransfer Transfers)) (newS string, err error) {
 	lineschema, err := Json2lineSchema(s)
 	if err != nil {
@@ -426,9 +430,11 @@ func TransferJson(s string, modifyTransferFn func(transfer Transfers) (newTransf
 		transfer := Transfer{
 			Src: TransferUnit{
 				Path: item.Path,
+				Type: item.Type, //此处只是为了记录更多信息,方便在modifyTransferFn 做判断没有其他作用
 			},
 			Dst: TransferUnit{
 				Path: item.Path,
+				//Type: item.Format, //此处只是为了记录更多信息,没有其他作用
 			},
 		}
 		transfers = append(transfers, transfer)
@@ -436,8 +442,10 @@ func TransferJson(s string, modifyTransferFn func(transfer Transfers) (newTransf
 	if modifyTransferFn != nil {
 		transfers = modifyTransferFn(transfers)
 	}
+	for i := range transfers {
+		transfers[i].Src.Path = strings.TrimSuffix(transfers[i].Src.Path, ".#") // path 最后的.# 代表取数组长度,此处需要删除,直接取元素即可
+	}
 	gjsonPath := transfers.String()
-	fmt.Println(gjsonPath)
 	newS = gjson.Get(s, gjsonPath).String()
 	return newS, nil
 }
