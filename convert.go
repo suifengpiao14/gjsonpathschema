@@ -31,47 +31,36 @@ func Json2lineSchema(jsonStr string) (out *Lineschema, err error) {
 	return out, nil
 }
 
-func parseOneJsonKey2Line(rv reflect.Value, fullname string) (items LineschemaItems) {
-	items = make([]*LineschemaItem, 0)
+// AssertBasicType 根据案例值（数组、对象不处理，只处理基本类型），推断lineschemaItem 的type 和format，次函数har解析时，Query部分需要在包外使用
+func AssertBasicType(rv reflect.Value) (typ string, format string, value any) {
 	rv = reflect.Indirect(rv)
 	kind := rv.Kind()
+	if kind == reflect.Interface {
+		rv = reflect.Indirect(rv.Elem())
+	}
 	switch kind {
 	case reflect.Bool:
-		item := &LineschemaItem{
-			Type:     "string",
-			Format:   "boolean",
-			Fullname: fullname,
-			Example:  cast.ToString(rv.Bool()),
-		}
-		items = append(items, item)
+		return "string", "boolean", cast.ToString(rv.Bool())
 	case reflect.Int, reflect.Int64:
-		item := &LineschemaItem{
-			Type:     "string",
-			Format:   "int",
-			Fullname: fullname,
-			Example:  cast.ToString(rv.Int()),
-		}
-		items = append(items, item)
+		return "string", "int", cast.ToString(rv.Int())
 	case reflect.Float32, reflect.Float64:
 		example := cast.ToString(rv.Float())
 		format := "float"
 		if !strings.Contains(example, ".") {
 			format = "int"
 		}
-		item := &LineschemaItem{
-			Type:     "string",
-			Format:   format,
-			Fullname: fullname,
-			Example:  example,
-		}
-		items = append(items, item)
+		return "string", format, example
 	case reflect.String:
-		item := &LineschemaItem{
-			Type:     "string",
-			Fullname: fullname,
-			Example:  rv.String(),
-		}
-		items = append(items, item)
+		return "string", "string", rv.String()
+	}
+	return "null", "null", rv.Interface()
+}
+
+func parseOneJsonKey2Line(rv reflect.Value, fullname string) (items LineschemaItems) {
+	items = make([]*LineschemaItem, 0)
+	rv = reflect.Indirect(rv)
+	kind := rv.Kind()
+	switch kind {
 	case reflect.Array, reflect.Slice:
 		l := rv.Len()
 		if l == 0 {
@@ -104,10 +93,12 @@ func parseOneJsonKey2Line(rv reflect.Value, fullname string) (items LineschemaIt
 		rv = rv.Elem()
 		return parseOneJsonKey2Line(rv, fullname)
 	default: // 默认返回null,避免字段丢失
+		typ, format, value := AssertBasicType(rv)
 		item := &LineschemaItem{
-			Type:     "null",
+			Type:     typ,
 			Fullname: fullname,
-			Example:  "null",
+			Format:   format,
+			Example:  cast.ToString(value),
 		}
 		items = append(items, item)
 	}
