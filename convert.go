@@ -51,7 +51,8 @@ func AssertBasicType(rv reflect.Value) (typ string, format string, value any) {
 		}
 		return "string", format, example
 	case reflect.String:
-		return "string", "string", rv.String()
+		value := rv.String()
+		return "string", "string", value
 	}
 	return "null", "null", rv.Interface()
 }
@@ -94,6 +95,9 @@ func parseOneJsonKey2Line(rv reflect.Value, fullname string) (items LineschemaIt
 		return parseOneJsonKey2Line(rv, fullname)
 	default: // 默认返回null,避免字段丢失
 		typ, format, value := AssertBasicType(rv)
+		if format == typ {
+			format = "" // 对应类型和格式一致的，忽略格式
+		}
 		item := &LineschemaItem{
 			Type:     typ,
 			Fullname: fullname,
