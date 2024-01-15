@@ -6,6 +6,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cast"
+	"github.com/suifengpiao14/funcs"
 	"github.com/suifengpiao14/kvstruct"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
@@ -81,6 +82,9 @@ func GenerateDefaultJSON(jschema []byte) (defaultJson []byte, err error) {
 		return nil, err
 	}
 	defaultJsonI := generateDefaultJSON(schema)
+	if funcs.IsNil(defaultJsonI) {
+		return nil, nil
+	}
 	defaultJson, err = json.Marshal(defaultJsonI)
 	if err != nil {
 		return nil, err

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"github.com/spf13/cast"
 	"github.com/suifengpiao14/funcs"
 	_ "github.com/suifengpiao14/gjsonmodifier"
 	"github.com/suifengpiao14/kvstruct"
@@ -378,14 +379,26 @@ func (lineschema Lineschema) TransferToFormat() (transfers Transfers) {
 }
 
 func (lineschema Lineschema) JsonExample() (jsonStr string, err error) {
-	jsonSchema, err := lineschema.JsonSchema()
-	if err != nil {
-		return "", err
+	resolved := lineschema.ResolveRef()
+	for _, item := range resolved.Items {
+		valueStr := item.Example
+		if valueStr == "" {
+			valueStr = item.Default
+		}
+
+		setPath := strings.ReplaceAll(item.Fullname, "[]", ".0") // 生成案例时，数组只设置第一个,fullname ,基本数组类型，item.Fullname最后有[],而item.Path 没有.#
+		var value any
+		value = valueStr
+		switch item.Type {
+		case "int":
+			value = cast.ToInt(valueStr)
+		case "boolean", "bool":
+			value = cast.ToBool(valueStr)
+		}
+		jsonStr, err = sjson.Set(jsonStr, setPath, value)
+		if err != nil {
+			return "", err
+		}
 	}
-	b, err := GenerateDefaultJSON(jsonSchema)
-	if err != nil {
-		return "", err
-	}
-	jsonStr = string(b)
 	return jsonStr, nil
 }
