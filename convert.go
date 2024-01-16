@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 
 	"github.com/spf13/cast"
@@ -88,6 +89,7 @@ func parseOneJsonKey2Line(rv reflect.Value, fullname string) (items LineschemaIt
 				subFullname = fmt.Sprintf("%s.%s", fullname, k)
 			}
 			subItems := parseOneJsonKey2Line(iter.Value(), subFullname)
+			sort.Sort(subItems)
 			items = append(items, subItems...)
 		}
 	case reflect.Interface, reflect.Ptr:

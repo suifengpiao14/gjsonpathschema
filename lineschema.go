@@ -70,6 +70,10 @@ func (ls LineschemaItems) Unique() (uniqItems LineschemaItems) {
 	return uniqItems
 }
 
+func (ls LineschemaItems) Len() int           { return len(ls) }
+func (ls LineschemaItems) Swap(i, j int)      { ls[i], ls[j] = ls[j], ls[i] }
+func (ls LineschemaItems) Less(i, j int) bool { return ls[i].Fullname < ls[j].Fullname }
+
 // 检测给定行是否为自定义结构体名称
 func CustomDefineStruct(typeName string) (structName string, isCustomDefineStruct bool) {
 	typeName = strings.TrimPrefix(typeName, "[]")
