@@ -26,6 +26,22 @@ type Lineschema struct {
 	Items LineschemaItems
 }
 
+func NewLineschema(id string) (lschema *Lineschema) {
+	return &Lineschema{
+		Meta: &Meta{
+			Version: "http://json-schema.org/draft-07/schema#",
+			ID:      id,
+		},
+		Items: make(LineschemaItems, 0),
+	}
+}
+
+func (ls *Lineschema) Init() {
+	for i := range ls.Items {
+		ls.Items[i].InitPath()
+	}
+}
+
 type LineschemaItems []*LineschemaItem
 
 func (ls *LineschemaItems) Add(lineschemaItems ...*LineschemaItem) {
