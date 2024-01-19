@@ -220,7 +220,7 @@ func PathModifyFnSmallCameCase(path string) (newPath string) {
 }
 
 // PathModifyFnSnakeCase 将路径转为下划线格式
-func PathModifyFnSnakeCase(path string, typ string) (newPath string) {
+func PathModifyFnSnakeCase(path string) (newPath string) {
 	arr := strings.Split(path, ".")
 	l := len(arr)
 	newArr := make([]string, l)
@@ -232,7 +232,7 @@ func PathModifyFnSnakeCase(path string, typ string) (newPath string) {
 }
 
 // PathModifyFnLower 将路径转为小写格式
-func PathModifyFnLower(path string, typ string) (newPath string) {
+func PathModifyFnLower(path string) (newPath string) {
 	return strings.ToLower(path)
 }
 
