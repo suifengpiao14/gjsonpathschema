@@ -17,6 +17,22 @@ func TestResolveRef(t *testing.T) {
 
 }
 
+func TestEmptyFullnameResolveRef(t *testing.T) {
+	ls, err := lineschema.ParseLineschema(emptyFullnameSchema)
+	require.NoError(t, err)
+	fs := ls.ResolveRef()
+	s := fs.String()
+	fmt.Println(s)
+
+}
+
+var emptyFullnameSchema = `
+version=http://json-schema.org/draft-07/schema#,id=out
+fullname=,type=proto,required,allowEmptyValue,title=协议,comment=协议
+fullname=proto.code,required,title=业务码,comment=业务码
+fullname=proto.message,required,title=业务提示,comment=业务提示
+`
+
 var packschema = `version=http://json-schema.org/draft-07/schema#,id=out
 fullname=domain,required,allowEmptyValue,title=领域,comment=领域
 fullname=scene,required,allowEmptyValue,title=应用场景,comment=应用场景

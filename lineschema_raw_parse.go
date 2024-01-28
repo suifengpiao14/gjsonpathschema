@@ -6,7 +6,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/pkg/errors"
 	"github.com/suifengpiao14/kvstruct"
 )
 
@@ -37,11 +36,11 @@ func ParseLineschema(lineschemaRaw string) (jsonline *Lineschema, err error) {
 		if err != nil {
 			return nil, err
 		}
-		err = validItem(item)
-		if err != nil {
-			err = errors.WithMessage(err, fmt.Sprintf(" got:%s", line))
-			return nil, err
-		}
+		// err = validItem(item)
+		// if err != nil {
+		// 	err = errors.WithMessage(err, fmt.Sprintf(" got:%s", line))
+		// 	return nil, err
+		// }
 		item.Lineschema = jsonline
 		jsonline.Items = append(jsonline.Items, item)
 	}
@@ -76,13 +75,13 @@ func IsMetaLine(lineTags kvstruct.KVS) bool {
 	return is
 }
 
-func validItem(item *LineschemaItem) (err error) {
-	if item.Fullname == "" {
-		err = errors.New("fullname required ")
-		return err
-	}
-	return nil
-}
+//	func validItem(item *LineschemaItem) (err error) {
+//		if item.Fullname == "" {
+//			err = errors.New("fullname required ")
+//			return err
+//		}
+//		return nil
+//	}
 func kv2item(kvs kvstruct.KVS) (item *LineschemaItem, err error) {
 	item = new(LineschemaItem)
 	m := make(map[string]interface{})
