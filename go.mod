@@ -4,12 +4,13 @@ go 1.21.0
 
 require (
 	github.com/pkg/errors v0.9.1
-	github.com/spf13/cast v1.5.1
+	github.com/spf13/cast v1.6.0
 	github.com/stretchr/testify v1.8.4
-	github.com/suifengpiao14/funcs v0.0.17
+	github.com/suifengpiao14/funcs v0.0.18
 	github.com/suifengpiao14/gjsonmodifier v0.1.10
 	github.com/suifengpiao14/kvstruct v0.0.14
-	github.com/tidwall/gjson v1.17.0
+	github.com/suifengpiao14/transfer v0.0.1
+	github.com/tidwall/gjson v1.17.1
 	github.com/tidwall/sjson v1.2.5
 	github.com/xeipuuv/gojsonschema v1.2.0
 )
