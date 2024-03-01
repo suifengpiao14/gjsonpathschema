@@ -11,7 +11,7 @@ import (
 	"github.com/suifengpiao14/funcs"
 	_ "github.com/suifengpiao14/gjsonmodifier"
 	"github.com/suifengpiao14/kvstruct"
-	"github.com/suifengpiao14/transfer"
+	"github.com/suifengpiao14/pathtransfer"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )
@@ -371,26 +371,26 @@ func (l *Lineschema) JsonSchema() (jsonschemaByte []byte, err error) {
 }
 
 // TransferToFormat 获取转换对象 源为type，目标为format
-func (lineschema Lineschema) TransferToFormat() (transfers transfer.Transfers) {
+func (lineschema Lineschema) TransferToFormat() (transfers pathtransfer.Transfers) {
 	resolveRef := lineschema.ResolveRef()
-	transfers = make(transfer.Transfers, 0)
+	transfers = make(pathtransfer.Transfers, 0)
 	for _, item := range resolveRef.Items {
 
-		src := transfer.TransferUnit{
+		src := pathtransfer.TransferUnit{
 			Path: item.Path,
 			Type: item.Type,
 		}
 		typ := item.Type
-		transferType, ok := transfer.DefaultTransferTypes.GetByType(item.Format)
+		transferType, ok := pathtransfer.DefaultTransferTypes.GetByType(item.Format)
 		if ok {
 			typ = transferType.Type
 		}
 
-		dst := transfer.TransferUnit{
+		dst := pathtransfer.TransferUnit{
 			Path: item.Path,
 			Type: typ,
 		}
-		transfer := transfer.Transfer{
+		transfer := pathtransfer.Transfer{
 			Src: src,
 			Dst: dst,
 		}
