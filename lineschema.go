@@ -377,7 +377,7 @@ func (lineschema Lineschema) TransferToFormat() (transfers pathtransfer.Transfer
 	for _, item := range resolveRef.Items {
 
 		src := pathtransfer.TransferUnit{
-			Path: item.Path,
+			Path: pathtransfer.Path(item.Path),
 			Type: item.Type,
 		}
 		typ := item.Type
@@ -387,7 +387,7 @@ func (lineschema Lineschema) TransferToFormat() (transfers pathtransfer.Transfer
 		}
 
 		dst := pathtransfer.TransferUnit{
-			Path: item.Path,
+			Path: pathtransfer.Path(item.Path),
 			Type: typ,
 		}
 		transfer := pathtransfer.Transfer{
