@@ -31,8 +31,8 @@ github.com/suifengpiao14/gjsonmodifier v0.2.2 h1:sWc7htKEoWc0G4ZnmyPGR6Rg7/0dPjK
 github.com/suifengpiao14/gjsonmodifier v0.2.2/go.mod h1:cYW5OJUld4QJCwIXS7qj9EENUTFyzy8tPyNdCpHvRUs=
 github.com/suifengpiao14/kvstruct v0.0.14 h1:c5Eb6AsBN0gTVGk/Vj05aEiJ79j+pNNo3aIBw09EuMo=
 github.com/suifengpiao14/kvstruct v0.0.14/go.mod h1:v3hf2KPrafdYJJ49M5RWLfpYS8Z2fsJO/rAGMnIBYn8=
-github.com/suifengpiao14/pathtransfer v0.0.10 h1:suPsRAYRY0paHnKvqTgGiro1v8li4eCrBydXVYy3ez8=
-github.com/suifengpiao14/pathtransfer v0.0.10/go.mod h1:K3uRljPtZWqXYCR1C3JijxqxBFAPfq+BLaeSBRmPluc=
+github.com/suifengpiao14/pathtransfer v0.0.11 h1:FMtO7fPclXw464Iap/hTjq6X7QNShPLJa4VukOXp3bw=
+github.com/suifengpiao14/pathtransfer v0.0.11/go.mod h1:K3uRljPtZWqXYCR1C3JijxqxBFAPfq+BLaeSBRmPluc=
 github.com/tidwall/gjson v1.14.2/go.mod h1:/wbyibRr2FHMks5tjHJ5F8dMZh3AcwJEMf5vlfC0lxk=
 github.com/tidwall/gjson v1.17.1 h1:wlYEnwqAHgzmhNUFfw7Xalt2JzQvsMx2Se4PcoFCT/U=
 github.com/tidwall/gjson v1.17.1/go.mod h1:/wbyibRr2FHMks5tjHJ5F8dMZh3AcwJEMf5vlfC0lxk=
